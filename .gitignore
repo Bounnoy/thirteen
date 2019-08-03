@@ -1,0 +1,10 @@
+# Mac OS Files
+.DS_Store
+
+# Windows Files
+Thumbs.db
+[Dd]esktop.ini
+*.lnk
+
+# Dependency directories.
+node_modules/
