@@ -2,9 +2,9 @@
   "name": "thirteen",
   "version": "0.0.1",
   "description": "A turn-based pattern matching card game.",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon ./app.js",
+    "dev": "nodemon ./server.js",
     "ui": "browser-sync start --proxy=localhost:8000 --files='**/*.css, **/*.html, **/*.js' --ignore=node_modules --reload-delay 10 --no-ui --no-notify"
   },
   "repository": {
@@ -23,6 +23,7 @@
     "nodemon": "^1.19.1"
   },
   "dependencies": {
+    "axios": "^0.19.0",
     "express": "^4.17.1",
     "socket.io": "^2.2.0"
   }

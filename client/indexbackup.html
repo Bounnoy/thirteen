@@ -13,7 +13,7 @@
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.2/socket.io.js"></script>
-    <!--<script type="text/javascript" src="http://localhost:8000/socket.io/socket.io.js"></script>-->
+
     <style type="text/css">
 			.navbar {
 				margin-bottom:30px;
@@ -56,15 +56,15 @@
         <div class="row">
           <div class="col-md-4">
             <h5 align="center">Player 2</h5>
-            <p align="center" id="p2"></p>
+            <p align="center">13</p>
           </div>
           <div class="col-md-4">
             <h5 align="center">Player 3</h5>
-            <p align="center" id="p3"></p>
+            <p align="center">13</p>
           </div>
           <div class="col-md-4">
             <h5 align="center">Player 4</h5>
-            <p align="center" id="p4"></p>
+            <p align="center">13</p>
           </div>
         </div>
 
@@ -72,7 +72,7 @@
       <div class="jumbotron">
         <div class="container" align="center">
           <!-- Game area. -->
-          
+          <img style="width: 10%" src="client/img/2H.png">
 
         </div>
       </div>
@@ -80,7 +80,8 @@
       <div class="container">
         <!-- Player Deck -->
         <div class="row">
-          <div class="col-md-12" align="center" id='pDeck'>
+          <div class="col-md-12" align="center">
+            <img style="width: 10%" src="client/img/2H.png">
           </div>
         </div>
 
@@ -94,33 +95,13 @@
       <p><a href="https://github.com/Bounnoy">Bounnoy Phanthavong</a> @ <a href="https://www.pdx.edu/">Portland State University</a>. All rights reserved.</p>
     </footer>
     <script type="text/javascript">
-      var socket = io.connect('http://192.168.1.121:8000/');
+      var socket = io('http://localhost:8000');
+      socket.on('connection', function (data) {
+        socket.emit('join', 'Hello world from client');
 
-      // socket.on('messages', function (data) {
-      //   // socket.emit('join', {
-      //   //   'msg': 'Hello world from client'
-      //   // });
-      //
-      //   console.log(data.test);
-      //   $('#test').text(data.test);
-      // });
-
-      // socket.on('newDeck', function(data) {
-      //   $('#test').text(data.deck_id);
-      // });
-      socket.on('cpu', function(data) {
-        $('#p2').text(data.p2);
-        $('#p3').text(data.p3);
-        $('#p4').text(data.p4);
-      });
-
-      socket.on('game', function(data) {
-        for (var i = 0; i < data.length; i++) {
-          if (i === 6) {
-            $('#pDeck').append('<br>');
-          }
-          $('#pDeck').append(`<img style="width: 10%" src="${data[i].image}">`);
-        }
+        socket.on('messages', function(data) {
+          $('.row').text(data);
+        });
       });
 
     </script>
