@@ -70,7 +70,7 @@
 
       <!-- Main jumbotron for a primary marketing message or call to action -->
       <div class="jumbotron">
-        <div class="container" align="center">
+        <div class="container" align="center" id='pile'>
           <!-- Game area. -->
 
 
@@ -80,6 +80,12 @@
       <div class="container">
         <!-- Player Deck -->
         <div class="row">
+          <div class="display-inline" style="margin: auto">
+            <button id="btnReset" type="button" class="btn btn-primary mr-2 mb-2">Reset</button>
+            <button id="btnSkip" type="button" class="btn btn-primary mr-2 mb-2">Skip</button>
+            <button id="btnPlay" type="button" class="btn btn-primary mr-2 mb-2">Play</button>
+          </div>
+
           <div class="col-md-12" align="center" id='pDeck'>
           </div>
         </div>
@@ -94,6 +100,7 @@
       <p><a href="https://github.com/Bounnoy">Bounnoy Phanthavong</a> @ <a href="https://www.pdx.edu/">Portland State University</a>. All rights reserved.</p>
     </footer>
     <script type="text/javascript">
+      var toPlay = [];
 
       var socket = io.connect('http://192.168.1.121:8000/');
 
@@ -109,19 +116,64 @@
       // socket.on('newDeck', function(data) {
       //   $('#test').text(data.deck_id);
       // });
-      socket.on('cpu', function(data) {
-        $('#p2').text(data.p2);
-        $('#p3').text(data.p3);
-        $('#p4').text(data.p4);
+      socket.on('cpu', function(sData) {
+        $('#p2').text(sData.p2);
+        $('#p3').text(sData.p3);
+        $('#p4').text(sData.p4);
       });
 
-      socket.on('game', function(data) {
-        for (var i = 0; i < data.length; i++) {
-          if (i === 6) {
-            $('#pDeck').append('<br>');
-          }
-          $('#pDeck').append(`<img style="width: 10%" src="${data[i].image}">`);
+      socket.on('pile', function(sData) {
+        $('#pile').empty();
+        for (var i = 0; i < sData.length; i++) {
+          if (i === 6) $('#pDeck').append('<br>');
+
+          $(document.createElement("img"))
+              .attr({ src: sData[i].image, style: "width: 10%; margin: 2px" })
+              .appendTo('#pile');
         }
+      });
+
+      socket.on('game', function(sData) {
+        $('#pDeck').empty();
+        for (var i = 0; i < sData.length; i++) {
+          if (i === 6) $('#pDeck').append('<br>');
+
+          $(document.createElement("img"))
+              .attr({ src: sData[i].image, style: "width: 10%; margin: 2px" })
+              .appendTo('#pDeck')
+              .data({'code': sData[i].code, 'select': false})
+              .click(function() {
+                  if ($(this).data('select') === false) {
+                    $(this).data('select', true);
+                    $(this).css({
+                      'border': "solid 1px #d4f",
+                      'border-radius': "5px",
+                      'box-shadow': "0 0 9px #caf"
+                    });
+
+                    toPlay.push($(this).data('code'));
+                  } else {
+                    $(this).data('select', false);
+                    $(this).css({
+                      'border': "none",
+                      'box-shadow': "0 0 0"
+                    });
+
+                    for (var i = 0; i < toPlay.length; i++) {
+            					if (toPlay[i] === $(this).data('code')) {
+            						toPlay.splice(i, 1);
+            					}
+            				}
+                  }
+                  console.log($(this).data('code'));
+                  console.log($(this).data('select'));
+                  console.log(toPlay);
+              });
+        }
+      });
+
+      $('#btnPlay').on('click', () => {
+        socket.emit('play', toPlay);
       });
 
     </script>

@@ -9,7 +9,11 @@ var p1deck = [];
 var p2deck = [];
 var p3deck = [];
 var p4deck = [];
-
+var pile = [];
+var turn = {
+  'player': '',
+  'pattern': []
+};
 
 server.use('/client', express.static(__dirname + '/client'));
 
@@ -30,6 +34,22 @@ io.on('connection', function(client) {
   //   'test': 'test'
   // });
   newDeck(client);
+
+  client.on('play', function(toPlay) {
+
+    for (var i = 0; i < toPlay.length; i++) {
+      for (var j = 0; j < p1deck.length; j++) {
+        if (toPlay[i] === p1deck[j].code) {
+          pile.push(p1deck[j]);
+          p1deck.splice(j, 1);
+        }
+      }
+    }
+
+    console.log(p1deck.length);
+    io.to(client.id).emit('game', p1deck);
+    io.to(client.id).emit('pile', pile);
+  });
 
   client.on('disconnect', function() {
     p1deck.splice(0, p1deck.length);
@@ -92,8 +112,8 @@ var sortCards = function(unsorted) {
   return unsorted;
 };
 
-
 // This function creates a new shuffled deck and sets the deck_id.
+// It also deals 13 cards to each player and sorts it for them.
 var newDeck = async (client) => {
   try {
     var shuffle = await axios.get(
@@ -141,11 +161,3 @@ var newDeck = async (client) => {
     console.log(`Error: ${error.code}`);
   }
 };
-
-// This function takes a deck_id and deals cards to each player.
-const newGame = async (deck, player) => {
-};
-
-// server.listen(port, () => {
-//   console.log(`Listening to requests on http://localhost:${port}`);
-// });
