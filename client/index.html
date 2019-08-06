@@ -102,20 +102,8 @@
     <script type="text/javascript">
       var toPlay = [];
 
-      var socket = io.connect('http://192.168.1.121:8000/');
+      var socket = io.connect('http://0.0.0.0:8000');
 
-      // socket.on('messages', function (data) {
-      //   // socket.emit('join', {
-      //   //   'msg': 'Hello world from client'
-      //   // });
-      //
-      //   console.log(data.test);
-      //   $('#test').text(data.test);
-      // });
-
-      // socket.on('newDeck', function(data) {
-      //   $('#test').text(data.deck_id);
-      // });
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
         $('#p3').text(sData.p3);
@@ -173,7 +161,10 @@
       });
 
       $('#btnPlay').on('click', () => {
+
+        //$('#pile').empty();
         socket.emit('play', toPlay);
+        toPlay.length = 0;
       });
 
     </script>
