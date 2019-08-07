@@ -39,7 +39,7 @@ server.get('/', function(req, res) {
 
 
 io.on('connection', function(client) {
-  console.log('Client connected...');
+  console.log('Client connected: ' + client.id);
 
   newDeck(client);
 
@@ -47,6 +47,7 @@ io.on('connection', function(client) {
   var gameTimer = setInterval(() => {
 
     if (turn.player === 'Player 2') {
+      console.log('Turn: Player 2');
       if (p1skip + p3skip + p4skip > 2) {
         turn.pattern = '0';
         lastMove.length = 0;
@@ -63,6 +64,7 @@ io.on('connection', function(client) {
       var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
 
       if (toPlay.length === 0) {
+        console.log('Skip: Player 2');
         turn.player = 'Player 3';
         p2move.length = 0;
         io.to(client.id).emit('turn', {'turn': turn});
@@ -78,7 +80,7 @@ io.on('connection', function(client) {
       }
       else {
         p2skip = 0;
-        console.log(toPlay);
+        console.log('Playing: ' + toPlay);
       }
 
       pile.length = 0;
@@ -96,8 +98,8 @@ io.on('connection', function(client) {
           }
         }
       }
-      console.log(p2deck.length);
-
+      console.log('Cards Left: ' + p2deck.length);
+      console.log('Emitting to: ' + client.id);
       // Winner
       if (p2deck.length === 0) {
         clearInterval(gameTimer);
@@ -120,6 +122,7 @@ io.on('connection', function(client) {
     }
 
     else if (turn.player === 'Player 3') {
+      console.log('Turn: Player 3');
       if (p1skip + p2skip + p4skip > 2) {
         turn.pattern = '0';
         lastMove.length = 0;
@@ -136,6 +139,7 @@ io.on('connection', function(client) {
       var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
 
       if (toPlay.length === 0) {
+        console.log('Skip: Player 3');
         turn.player = 'Player 4';
         p3move.length = 0;
         io.to(client.id).emit('turn', {'turn': turn});
@@ -151,7 +155,7 @@ io.on('connection', function(client) {
       }
       else {
         p3skip = 0;
-        console.log(toPlay);
+        console.log('Playing: ' + toPlay);
       }
 
       pile.length = 0;
@@ -169,7 +173,8 @@ io.on('connection', function(client) {
           }
         }
       }
-      console.log(p3deck.length);
+      console.log('Cards Left: ' + p3deck.length);
+      console.log('Emitting to: ' + client.id);
       // Winner
       if (p3deck.length === 0) {
         clearInterval(gameTimer);
@@ -192,6 +197,7 @@ io.on('connection', function(client) {
     }
 
     else if (turn.player === 'Player 4') {
+      console.log('Turn: Player 4');
       if (p1skip + p2skip + p3skip > 2) {
         turn.pattern = '0';
         lastMove.length = 0;
@@ -208,6 +214,7 @@ io.on('connection', function(client) {
       var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
 
       if (toPlay.length === 0) {
+        console.log('Skip: Player 4');
         turn.player = client.id;
         p4move.length = 0;
         p4skip = 1;
@@ -231,7 +238,7 @@ io.on('connection', function(client) {
       }
       else {
         p4skip = 0;
-        console.log(toPlay);
+        console.log('Playing: ' + toPlay);
       }
 
       pile.length = 0;
@@ -249,7 +256,8 @@ io.on('connection', function(client) {
           }
         }
       }
-      console.log(p4deck.length);
+      console.log('Cards Left: ' + p4deck.length);
+      console.log('Emitting to: ' + client.id);
       // Winner
       if (p4deck.length === 0) {
         clearInterval(gameTimer);
@@ -272,6 +280,7 @@ io.on('connection', function(client) {
   }, 5000);
 
   client.on('newGame', () => {
+    console.log('New Game Button: ' + client.id);
     p1deck.length = 0;
     p2deck.length = 0;
     p3deck.length = 0;
@@ -295,13 +304,15 @@ io.on('connection', function(client) {
 
   client.on('play', function(toPlay) {
 
+    console.log('Play Button: ' + client.id);
+
     // Check to make sure it's a player's turn.
     if (turn.player != client.id) return;
 
     var pat = patternCode(toPlay);
 
     // If no game yet, must play 3S
-    console.log(toPlay[0]);
+    console.log('Playing: ' + toPlay);
     if (turn.pattern === '' && toPlay[0] != '3S') {
       io.to(client.id).emit('badPattern', {
         'message': 'Must play 3 of Spades in your pattern.'
@@ -358,7 +369,7 @@ io.on('connection', function(client) {
       }
     }
 
-    console.log(p1deck.length);
+    console.log('Cards Left: ' + p1deck.length);
     // Winner
     if (p1deck.length === 0) {
       clearInterval(gameTimer);
@@ -375,6 +386,7 @@ io.on('connection', function(client) {
   });
 
   client.on('skip', () => {
+    console.log('Skip Button: ' + client.id);
     if (turn.pattern === '' || turn.pattern === '0') {
       io.to(client.id).emit('badPattern', {
         'message': 'Cannot skip your own turn.'
@@ -391,6 +403,8 @@ io.on('connection', function(client) {
   });
 
   client.on('disconnect', function() {
+    console.log('Disconnected: ' + client.id);
+    clearInterval(gameTimer);
     p1deck.length = 0;
     p2deck.length = 0;
     p3deck.length = 0;
@@ -557,7 +571,7 @@ var newDeck = async (client) => {
       if (p4deck[i].code === '3S') turn.player = 'Player 4';
     }
 
-    console.log(turn.player);
+    console.log('Turn: ' + turn.player);
     io.to(client.id).emit('game', p1deck);
     io.to(client.id).emit('pile', []);
     io.to(client.id).emit('cpu', {
