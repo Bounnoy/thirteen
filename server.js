@@ -9,10 +9,16 @@ var p1deck = [];
 var p2deck = [];
 var p3deck = [];
 var p4deck = [];
+var p1move = [];
+var p2move = [];
+var p3move = [];
+var p4move = [];
+var lastMove = [];
+
 var pile = [];
 var turn = {
   'player': '',
-  'pattern': []
+  'pattern': ''
 };
 
 server.use('/client', express.static(__dirname + '/client'));
@@ -30,21 +36,175 @@ server.get('/', function(req, res) {
 io.on('connection', function(client) {
   console.log('Client connected...');
 
-  // io.emit('messages', {
-  //   'test': 'test'
-  // });
   newDeck(client);
 
+  // Continuously check for whose turn it is.
+  setInterval(() => {
+    if (turn.player === 'Player 2') {
+      var cpuDeck = [];
+      for (var i = 0; i < p2deck.length; i++) {
+        cpuDeck.push(p2deck[i].code);
+      }
+      var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
+
+      if (toPlay.length === 0) console.log('Empty');
+      else console.log(toPlay);
+
+      pile.length = 0;
+      p2move.length = 0;
+      lastMove.length = 0;
+      turn.pattern = patternCode(toPlay);
+      turn.player = 'Player 3';
+      for (var i = 0; i < toPlay.length; i++) {
+        for (var j = 0; j < p2deck.length; j++) {
+          if (toPlay[i] === p2deck[j].code) {
+            pile.push(p2deck[j]);
+            p2move.push(toPlay[i]);
+            lastMove.push(toPlay[i]);
+            p2deck.splice(j, 1);
+          }
+        }
+      }
+      console.log(p2deck.length);
+      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('cpu', {
+        'p2': p2deck.length,
+        'p3': p3deck.length,
+        'p4': p4deck.length,
+        'p2move': p2move,
+        'p3move': p3move,
+        'p4move': p4move
+      });
+      io.to(client.id).emit('turn', {'turn': turn});
+    }
+
+    else if (turn.player === 'Player 3') {
+      var cpuDeck = [];
+      for (var i = 0; i < p3deck.length; i++) {
+        cpuDeck.push(p3deck[i].code);
+      }
+      var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
+
+      console.log(toPlay);
+
+      pile.length = 0;
+      p3move.length = 0;
+      lastMove.length = 0;
+      turn.pattern = patternCode(toPlay);
+      turn.player = 'Player 4';
+      for (var i = 0; i < toPlay.length; i++) {
+        for (var j = 0; j < p3deck.length; j++) {
+          if (toPlay[i] === p3deck[j].code) {
+            pile.push(p3deck[j]);
+            p3move.push(toPlay[i]);
+            lastMove.push(toPlay[i]);
+            p3deck.splice(j, 1);
+          }
+        }
+      }
+      console.log(p3deck.length);
+      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('cpu', {
+        'p2': p2deck.length,
+        'p3': p3deck.length,
+        'p4': p4deck.length,
+        'p2move': p2move,
+        'p3move': p3move,
+        'p4move': p4move
+      });
+      io.to(client.id).emit('turn', {'turn': turn});
+    }
+
+    else if (turn.player === 'Player 4') {
+      var cpuDeck = [];
+      for (var i = 0; i < p4deck.length; i++) {
+        cpuDeck.push(p4deck[i].code);
+      }
+      var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
+
+      console.log(toPlay);
+
+      pile.length = 0;
+      p4move.length = 0;
+      lastMove.length = 0;
+      turn.pattern = patternCode(toPlay);
+      turn.player = client.id;
+      for (var i = 0; i < toPlay.length; i++) {
+        for (var j = 0; j < p4deck.length; j++) {
+          if (toPlay[i] === p4deck[j].code) {
+            pile.push(p4deck[j]);
+            p4move.push(toPlay[i]);
+            lastMove.push(toPlay[i]);
+            p4deck.splice(j, 1);
+          }
+        }
+      }
+      console.log(p4deck.length);
+      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('cpu', {
+        'p2': p2deck.length,
+        'p3': p3deck.length,
+        'p4': p4deck.length,
+        'p2move': p2move,
+        'p3move': p3move,
+        'p4move': p4move
+      });
+      io.to(client.id).emit('turn', {'turn': turn});
+    }
+  }, 5000);
+
   client.on('play', function(toPlay) {
+
+    // Check to make sure it's a player's turn.
+    if (turn.player != client.id) return;
+
+    var pat = patternCode(toPlay);
+
+    // If no game yet, must play 3S
+    console.log(toPlay[0]);
+    if (turn.pattern === '' && toPlay[0] != '3S') {
+      io.to(client.id).emit('badPattern', {
+        'message': 'Must play 3 of Spades in your pattern.'
+      });
+      return;
+    }
+
+    // Check to make sure pattern is valid.
+    if (pat === '0') {
+      io.to(client.id).emit('badPattern', {
+        'message': 'Wrong pattern. Try something else.'
+      });
+      return;
+    }
+
+    // Check to make sure player is following previous pattern.
+    if (turn.pattern != '' && pat != turn.pattern) {
+      io.to(client.id).emit('badPattern', {
+        'message': 'Must use same pattern as previous player.'
+      });
+      return;
+    }
+
+    // Check if player is using a higher value pattern.
+    if (compareCards(toPlay[toPlay.length - 1], lastMove[lastMove.length - 1]) === -1) {
+      io.to(client.id).emit('badPattern', {
+        'message': 'Your selected cards are lower than the current cards.'
+      });
+      return;
+    }
 
     // Clear pile each time we play. May need to change later
     // if we implement game history.
     pile.length = 0;
-    console.log(patternCode(toPlay));
+    lastMove.length = 0;
+    turn.pattern = pat;
+    turn.player = 'Player 2';
     for (var i = 0; i < toPlay.length; i++) {
       for (var j = 0; j < p1deck.length; j++) {
         if (toPlay[i] === p1deck[j].code) {
           pile.push(p1deck[j]);
+          p1move.push(toPlay[i]);
+          lastMove.push(toPlay[i]);
           p1deck.splice(j, 1);
         }
       }
@@ -53,13 +213,31 @@ io.on('connection', function(client) {
     console.log(p1deck.length);
     io.to(client.id).emit('game', p1deck);
     io.to(client.id).emit('pile', pile);
+    io.to(client.id).emit('turn', {'turn': turn});
+  });
+
+  client.on('skip', () => {
+    turn.player = 'Player 2';
+    p1move.length = 0;
+    io.to(client.id).emit('game', p1deck);
+    io.to(client.id).emit('turn', {'turn': turn});
   });
 
   client.on('disconnect', function() {
-    p1deck.splice(0, p1deck.length);
-    p2deck.splice(0, p2deck.length);
-    p3deck.splice(0, p3deck.length);
-    p4deck.splice(0, p4deck.length);
+    p1deck.length = 0;
+    p2deck.length = 0;
+    p3deck.length = 0;
+    p4deck.length = 0;
+    p1move.length = 0;
+    p2move.length = 0;
+    p3move.length = 0;
+    p4move.length = 0;
+    lastMove.length = 0;
+    pile.length = 0;
+    turn = {
+      'player': '',
+      'pattern': ''
+    };
   })
 });
 
@@ -192,14 +370,42 @@ var newDeck = async (client) => {
     p3deck = sortCards(unsort3);
     p4deck = sortCards(unsort4);
 
+    for (var i = 0; i < 13; i++) {
+      if (p1deck[i].code === '3S') turn.player = client.id;
+    }
+
+    for (var i = 0; i < 13; i++) {
+      if (p2deck[i].code === '3S') turn.player = 'Player 2';
+    }
+
+    for (var i = 0; i < 13; i++) {
+      if (p3deck[i].code === '3S') turn.player = 'Player 3';
+    }
+
+    for (var i = 0; i < 13; i++) {
+      if (p4deck[i].code === '3S') turn.player = 'Player 4';
+    }
+
+    console.log(turn.player);
     io.to(client.id).emit('game', p1deck);
     io.to(client.id).emit('pile', []);
     io.to(client.id).emit('cpu', {
       'p2': p2deck.length,
       'p3': p3deck.length,
-      'p4': p4deck.length
+      'p4': p4deck.length,
+      'p2move': p2move,
+      'p3move': p3move,
+      'p4move': p4move
     });
+    io.to(client.id).emit('turn', {'turn': turn});
 
+
+
+    // var test = [];
+    // for (var i = 0; i < p1deck.length; i++) {
+    //   test.push(p1deck[i].code);
+    // }
+    // console.log(possibleMoves(test).length);
   } catch (error) {
     console.log(`Error: ${error.code}`);
   }
@@ -221,8 +427,6 @@ var newDeck = async (client) => {
 var patternCode = function(pat) {
   pat = sortCardArray(pat);
   var n = pat.length;
-  console.log(pat);
-  console.log('Length: ' + n);
 
   // Instant Win: 6 pairs
   if (n === 12) {
@@ -243,7 +447,7 @@ var patternCode = function(pat) {
 
       // Pattern Breaker: Pair of 2's
       if (pat[0][0] === '2') return 'B2';
-            
+
       return '2K';
     }
   }
@@ -268,12 +472,11 @@ var patternCode = function(pat) {
     if (n >= 9 && n % 3 === 0) {
 
       for (var i = 0; i < (n - 3); i += 3) {
-        if (pat[i][0] === pat[i + 2][0] &&
+        if (pat[i][0] === pat[i + 1][0] &&
+            pat[i + 1][0] === pat[i + 2][0] &&
             checkStraight(pat[i][0], pat[i + 3][0]) === 1) ++tsCount;
       }
 
-      console.log('tsCount: ' + tsCount);
-      console.log('n: ' + n);
       if (tsCount * 3 === n) return n.toString() + 'T';
     }
 
@@ -286,8 +489,6 @@ var patternCode = function(pat) {
             checkStraight(pat[i][0], pat[i + 2][0]) === 1) ++dsCount;
       }
 
-      console.log('dsCount: ' + dsCount);
-      console.log('n: ' + n);
       if (dsCount * 2 === n) return n.toString() + 'D';
     }
 
@@ -297,8 +498,6 @@ var patternCode = function(pat) {
       if (checkStraight(pat[i][0], pat[i + 1][0]) === 1) ++sCount;
     }
 
-    console.log('sCount: ' + sCount);
-    console.log('n: ' + n);
     if (sCount === n) {
 
       // Instant Win: 12 straight
@@ -309,4 +508,190 @@ var patternCode = function(pat) {
   }
 
   return '0';
+};
+
+// This function takes an array and returns all combinations to calculate
+// the possible moves a player can make. Note that the array should be sorted
+// for best efficiency. Otherwise, the time complexity will be a factorial of 13,
+// which is over 6 billion possible permutations. This algorithm cuts it down to 8,191.
+// This code was found on (and modified for this project):
+// https://codereview.stackexchange.com/questions/7001/generating-all-combinations-of-an-array
+var combinations = function(deck) {
+  var fn = function(active, rest, a) {
+    if (active.length === 0 && rest.length === 0) return;
+    if (rest.length === 0) a.push(active);
+    else {
+      active.push(rest[0]);
+      fn(active, rest.slice(1), a);
+      fn(active, rest.slice(1), a);
+    }
+    return a;
+  }
+
+  return fn([], deck, []);
+};
+
+// This function returns a list of possible moves represented as a 2D array.
+var possibleMoves = function(deck) {
+  var moves = [];
+  var variation = combinations(deck);
+  console.log(variation.length);
+
+  for (var i = 0; i < variation.length; i++) {
+    if (patternCode(variation[i]) != '0') moves.push(variation[i]);
+  }
+
+  console.log(moves.length);
+
+  return moves;
+};
+
+// Computer AI
+// Pick a pattern, check CPU deck, check last move, and then return cards to play.
+// We won't make the AI smart at all. It'll just pick an expected pattern of cards.
+var cpuAI = function(patCode, cpuDeck, lastMove) {
+  var n1 = cpuDeck.length;
+  var n2 = lastMove.length;
+
+  if (n1 > 0 && patCode === '') return [cpuDeck[0]]; // Must play 3S
+  if (n1 > 0 && patCode === '0') {
+    if (n1 >= 4) {
+      // Play quads first.
+      for (var i = 0; i < n1 - 3; i++) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            cpuDeck[i + 1][0] === cpuDeck[i + 2][0] &&
+            cpuDeck[i + 2][0] === cpuDeck[i + 3][0]) {
+          return cpuDeck.slice(i, i + 4);
+        }
+      }
+    }
+
+    if (n1 >= 3) {
+      // Play triples first.
+      for (var i = 0; i < n1 - 2; i++) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            cpuDeck[i + 1][0] === cpuDeck[i + 2][0]) {
+          return cpuDeck.slice(i, i + 3);
+        }
+      }
+
+      // Play straights.
+      var sCount = 1;
+      for (var i = 0; i < (n1 - 1); i++) {
+        if (checkStraight(cpuDeck[i][0], cpuDeck[i + 1][0]) === 1) ++sCount;
+        else {
+          if (sCount >= 3) {
+            return cpuDeck.slice(i - (sCount - 2), i + 2);
+          }
+          sCount = 1;
+          j = n2; // this breaks the loop
+        }
+      }
+
+      if (sCount > 3 ) return cpuDeck.slice(n1 - sCount, n1);
+    }
+
+    if (n1 >= 2) {
+      // Play pairs first.
+      for (var i = 0; i < n1; i++) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0]) {
+          return cpuDeck.slice(i, i + 2);
+        }
+      }
+    }
+
+    // Play singles.
+    return cpuDeck.slice(0, 1);
+  } // Play anything.
+
+  if (n1 >= n2 && patCode.endsWith('K')) {
+    if (patCode[0] === '1') {
+      for (var i = 0; i < cpuDeck.length; i++) {
+        if (compareCards(cpuDeck[i], lastMove[0]) === 1) return [cpuDeck[i]];
+      }
+    }
+    if (patCode[0] === '2') {
+      for (var i = 0; i < (cpuDeck.length - 1); i++) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            compareCards(cpuDeck[i + 1], lastMove[1]) === 1)
+          return cpuDeck.slice(i, i + 2);
+      }
+    }
+    if (patCode[0] === '3') {
+      for (var i = 0; i < (cpuDeck.length - 2); i++) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            cpuDeck[i + 1][0] === cpuDeck[i + 2][0] &&
+            compareCards(cpuDeck[i + 2], lastMove[2]) === 1)
+          return cpuDeck.slice(i, i + 3);
+      }
+    }
+    if (patCode[0] === '4') {
+      for (var i = 0; i < (cpuDeck.length - 3); i++) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            cpuDeck[i + 1][0] === cpuDeck[i + 2][0] &&
+            cpuDeck[i + 2][0] === cpuDeck[i + 3][0] &&
+            compareCards(cpuDeck[i + 3], lastMove[3]) === 1)
+          return cpuDeck.slice(i, i + 4);
+      }
+    }
+
+    return [];
+  }
+
+  if (n1 >= n2 && patCode.endsWith('S')) {
+    var sCount = 1;
+    for (var i = 0; i < (n2 - 1); i++) {
+      if (compareCards(cpuDeck[i + n2 - 1], lastMove[n2 - 1]) === 1) {
+        for (var j = 0; j < n2; j++) {
+          if (checkStraight(cpuDeck[i][0], cpuDeck[i + 1][0]) === 1) ++sCount;
+          else {
+            sCount = 1;
+            j = n2; // this breaks the loop
+          }
+        }
+
+        if (sCount === n2) return cpuDeck.slice(i, i + n2);
+      }
+    }
+    return [];
+  }
+
+  if (n1 >= n2 && patCode.endsWith('D')) {
+    var dsCount = 1;
+    if (n1 % 2 === 0) {
+
+      for (var i = 0; i < (n2 - 2); i += 2) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            checkStraight(cpuDeck[i][0], cpuDeck[i + 2][0]) === 1) ++dsCount;
+        else dsCount = 1;
+
+        if (dsCount * 2 === n2 &&
+            compareCards(cpuDeck[i + 3], lastMove[n2 - 1]) === 1) {
+            return cpuDeck.slice(i - (n2 - 4), i + 4);
+        }
+      }
+    }
+    return [];
+  }
+
+  if (n1 >= n2 && patCode.endsWith('T')) {
+    var tsCount = 1;
+    if (n1 % 3 === 0) {
+
+      for (var i = 0; i < (n2 - 3); i += 3) {
+        if (cpuDeck[i][0] === cpuDeck[i + 1][0] &&
+            cpuDeck[i + 1][0] === cpuDeck[i + 2][0] &&
+            checkStraight(cpuDeck[i][0], cpuDeck[i + 3][0]) === 1) ++tsCount;
+        else tsCount = 1;
+
+        if (tsCount * 3 === n2 &&
+            compareCards(cpuDeck[i + 5], lastMove[n2 - 1]) === 1) {
+              return cpuDeck.slice(i - (n2 - 6), i + 6);
+        }
+      }
+    }
+    return [];
+  }
+
+  return [];
 };

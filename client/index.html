@@ -80,7 +80,8 @@
       <div class="container">
         <!-- Player Deck -->
         <div class="row">
-          <div class="display-inline" style="margin: auto">
+          <div class="display-inline" style="margin: auto; text-align: center">
+            <div id="playerBtn"></div>
             <button id="btnReset" type="button" class="btn btn-primary mr-2 mb-2">Reset</button>
             <button id="btnSkip" type="button" class="btn btn-primary mr-2 mb-2">Skip</button>
             <button id="btnPlay" type="button" class="btn btn-primary mr-2 mb-2">Play</button>
@@ -102,12 +103,15 @@
     <script type="text/javascript">
       var toPlay = [];
 
-      var socket = io.connect('http://0.0.0.0:8000');
+      var socket = io.connect('http://192.168.1.128:8000');
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
+        if (sData.p2move) $('#p2').append('<br>' + sData.p2move.join(', '));
         $('#p3').text(sData.p3);
+        if (sData.p3move) $('#p3').append('<br>' + sData.p3move.join(', '));
         $('#p4').text(sData.p4);
+        if (sData.p4move) $('#p4').append('<br>' + sData.p4move.join(', '));
       });
 
       socket.on('pile', function(sData) {
@@ -121,7 +125,23 @@
         }
       });
 
+      socket.on('turn', function(sData) {
+        if (sData.turn.player === socket.id) {
+          $('#playerBtn').empty();
+          $('#btnReset').show();
+          $('#btnSkip').show();
+          $('#btnPlay').show();
+        } else {
+          $('#playerBtn').empty().prepend(`<p>${sData.turn.player}'s turn...</p>`);
+          $('#btnReset').hide();
+          $('#btnSkip').hide();
+          $('#btnPlay').hide();
+        }
+      });
+
       socket.on('game', function(sData) {
+        toPlay.length = 0;
+        $('#playerBtn').empty();
         $('#pDeck').empty();
         for (var i = 0; i < sData.length; i++) {
           if (i === 6) $('#pDeck').append('<br>');
@@ -160,11 +180,16 @@
         }
       });
 
-      $('#btnPlay').on('click', () => {
+      socket.on('badPattern', (mes) => {
+        $('#playerBtn').empty().prepend('<p style="color: red">' + mes.message + '</p>');
+      });
 
-        //$('#pile').empty();
+      $('#btnPlay').on('click', () => {
         socket.emit('play', toPlay);
-        toPlay.length = 0;
+      });
+
+      $('#btnSkip').on('click', () => {
+        socket.emit('skip');
       });
 
     </script>
