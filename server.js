@@ -334,6 +334,7 @@ io.on('connection', function(client) {
     // Check to make sure player is following previous pattern.
     if (turn.pattern != '') {
       if (turn.pattern === '2K' && pat === 'B2') {} // Do nothing.
+      else if (turn.pattern === 'B2' && pat === '2K') {} // Do nothing.
       else if (pat != turn.pattern) {
         io.to(client.id).emit('badPattern', {
           'message': 'Must use same pattern as previous player.'

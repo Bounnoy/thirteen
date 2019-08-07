@@ -108,11 +108,37 @@
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
-        if (sData.p2move) $('#p2').append('<br>' + sData.p2move.join(', '));
+        if (sData.p2move) {
+          var moves = sData.p2move.join(', ');
+          moves = moves.replace(/S/g, '&spades;');
+          moves = moves.replace(/C/g, '&clubs;');
+          moves = moves.replace(/D/g, '<font color=red>&diams;</font>');
+          moves = moves.replace(/H/g, '<font color=red>&hearts;</font>');
+          moves = moves.replace(/0/g, '10');
+          $('#p2').append('<br>' + moves);
+        } else $('#p2').append('<br>Skip');
+
         $('#p3').text(sData.p3);
-        if (sData.p3move) $('#p3').append('<br>' + sData.p3move.join(', '));
+        if (sData.p3move) {
+          var moves = sData.p3move.join(', ');
+          moves = moves.replace(/S/g, '&spades;');
+          moves = moves.replace(/C/g, '&clubs;');
+          moves = moves.replace(/D/g, '<font color=red>&diams;</font>');
+          moves = moves.replace(/H/g, '<font color=red>&hearts;</font>');
+          moves = moves.replace(/0/g, '10');
+          $('#p3').append('<br>' + moves);
+        } else $('#p3').append('<br>Skip');
+
         $('#p4').text(sData.p4);
-        if (sData.p4move) $('#p4').append('<br>' + sData.p4move.join(', '));
+        if (sData.p4move) {
+          var moves = sData.p4move.join(', ');
+          moves = moves.replace(/S/g, '&spades;');
+          moves = moves.replace(/C/g, '&clubs;');
+          moves = moves.replace(/D/g, '<font color=red>&diams;</font>');
+          moves = moves.replace(/H/g, '<font color=red>&hearts;</font>');
+          moves = moves.replace(/0/g, '10');
+          $('#p4').append('<br>' + moves);
+        } else $('#p4').append('<br>Skip');
       });
 
       socket.on('pile', function(sData) {
