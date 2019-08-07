@@ -28,13 +28,13 @@
         <ul class="navbar-nav mr-auto">
           <li class="nav-item active">
             <a class="nav-link" href="#">home</a>
-          </li>
+          </li><!--
           <li class="nav-item">
             <a class="nav-link" href="#">rules</a>
           </li>
 					<li class="nav-item">
             <a class="nav-link" href="#">patterns</a>
-          </li>
+          </li>-->
         </ul>
 
 				<ul class="navbar-nav my-2 my-lg-0">
@@ -80,7 +80,7 @@
       <div class="container">
         <!-- Player Deck -->
         <div class="row">
-          <div class="display-inline" style="margin: auto; text-align: center">
+          <div id="playerDeck" class="display-inline" style="margin: auto; text-align: center">
             <div id="playerBtn"></div>
             <button id="btnReset" type="button" class="btn btn-primary mr-2 mb-2">Reset</button>
             <button id="btnSkip" type="button" class="btn btn-primary mr-2 mb-2">Skip</button>
@@ -104,6 +104,7 @@
       var toPlay = [];
 
       var socket = io.connect('http://192.168.1.128:8000');
+      //var socket = io.connect('http://192.168.0.12:8000');
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
@@ -129,7 +130,11 @@
         if (sData.turn.player === socket.id) {
           $('#playerBtn').empty();
           $('#btnReset').show();
-          $('#btnSkip').show();
+          if (sData.turn.pattern != '0') {
+            $('#btnSkip').show();
+          } else {
+            $('#playerBtn').prepend(`<p>No one else can go, play any pattern.</p>`);
+          }
           $('#btnPlay').show();
         } else {
           $('#playerBtn').empty().prepend(`<p>${sData.turn.player}'s turn...</p>`);
@@ -137,6 +142,17 @@
           $('#btnSkip').hide();
           $('#btnPlay').hide();
         }
+      });
+
+      socket.on('win', function(sData) {
+        $('#btnReset').hide();
+        $('#btnSkip').hide();
+        $('#btnPlay').hide();
+        $('#playerBtn').empty().prepend(`<p style="color: "#d4f">${sData.message}</p>`);
+        $('#playerDeck').append('<button id="newGame" type="button" class="btn btn-primary mr-2 mb-2">Play Again</button>');
+        // $(document.createElement("img"))
+        //     .attr({ src: sData[i].image, style: "width: 10%; margin: 2px" })
+        //     .appendTo('#pile');
       });
 
       socket.on('game', function(sData) {
@@ -191,6 +207,11 @@
       $('#btnSkip').on('click', () => {
         socket.emit('skip');
       });
+
+      $('#newGame').on('click', () => {
+        socket.emit('newGame');
+        $('#newGame').detach();
+      })
 
     </script>
   </body>
