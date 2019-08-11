@@ -4,28 +4,6 @@ var express = require('express');
 var socket = require('socket.io');
 var axios = require('axios');
 var server = express();
-
-var p1deck = [];
-var p2deck = [];
-var p3deck = [];
-var p4deck = [];
-var p1move = [];
-var p2move = [];
-var p3move = [];
-var p4move = [];
-var p1skip = 0;
-var p2skip = 0;
-var p3skip = 0;
-var p4skip = 0;
-
-var lastMove = [];
-
-var pile = [];
-var turn = {
-  'player': '',
-  'pattern': ''
-};
-
 server.use('/client', express.static(__dirname + '/client'));
 
 var io = socket(server.listen(process.env.PORT || "8000"));
@@ -34,74 +12,116 @@ server.get('/', function(req, res) {
   res.sendFile(__dirname + '/client/index.html');
 });
 
-
+var game = {};
+// var p1deck = [];
+// var p2deck = [];
+// var p3deck = [];
+// var p4deck = [];
+// var p1move = [];
+// var p2move = [];
+// var p3move = [];
+// var p4move = [];
+// var p1skip = 0;
+// var p2skip = 0;
+// var p3skip = 0;
+// var p4skip = 0;
+//
+// var lastMove = [];
+//
+// var pile = [];
+// var turn = {
+//   'player': '',
+//   'pattern': ''
+// };
 
 
 
 io.on('connection', function(client) {
   console.log('Client connected: ' + client.id);
+  game[client.id] = {
+    p1deck: [],
+    p2deck: [],
+    p3deck: [],
+    p4deck: [],
+    p1move: [],
+    p2move: [],
+    p3move: [],
+    p4move: [],
+    p1skip: 0,
+    p2skip: 0,
+    p3skip: 0,
+    p4skip: 0,
+    lastMove: [],
+    pile: [],
+    turn: {
+      'player': '',
+      'pattern': ''
+    }
+  };
+
+
 
   newDeck(client);
 
   // Continuously check for whose turn it is.
   var gameTimer = setInterval(() => {
 
-    if (turn.player === 'Player 2') {
+    if (game[client.id].turn.player === 'Player 2') {
       console.log('Turn: Player 2');
-      if (p1skip + p3skip + p4skip > 2) {
-        turn.pattern = '0';
-        lastMove.length = 0;
-        p1skip = 0;
-        p2skip = 0;
-        p3skip = 0;
-        p4skip = 0;
+      if (game[client.id].p1skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
+        game[client.id].turn.pattern = '0';
+        game[client.id].lastMove.length = 0;
+        game[client.id].p1skip = 0;
+        game[client.id].p2skip = 0;
+        game[client.id].p3skip = 0;
+        game[client.id].p4skip = 0;
       }
 
       var cpuDeck = [];
-      for (var i = 0; i < p2deck.length; i++) {
-        cpuDeck.push(p2deck[i].code);
+      for (var i = 0; i < game[client.id].p2deck.length; i++) {
+        cpuDeck.push(game[client.id].p2deck[i].code);
       }
-      var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
+      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
 
       if (toPlay.length === 0) {
         console.log('Skip: Player 2');
-        turn.player = 'Player 3';
-        p2move.length = 0;
-        io.to(client.id).emit('turn', {'turn': turn});
+        game[client.id].turn.player = 'Player 3';
+        game[client.id].p2move.length = 0;
+        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
         io.to(client.id).emit('cpu', {
-          'p2': p2deck.length,
-          'p3': p3deck.length,
-          'p4': p4deck.length,
-          'p3move': p3move,
-          'p4move': p4move
+          'p2': game[client.id].p2deck.length,
+          'p3': game[client.id].p3deck.length,
+          'p4': game[client.id].p4deck.length,
+          'p3move': game[client.id].p3move,
+          'p4move': game[client.id].p4move
         });
-        p2skip = 1;
+        game[client.id].p2skip = 1;
         return;
       }
       else {
-        p2skip = 0;
+        game[client.id].p2skip = 0;
         console.log('Playing: ' + toPlay);
       }
 
-      pile.length = 0;
-      p2move.length = 0;
-      lastMove.length = 0;
-      turn.pattern = patternCode(toPlay);
-      turn.player = 'Player 3';
+      game[client.id].pile.length = 0;
+      game[client.id].p2move.length = 0;
+      game[client.id].lastMove.length = 0;
+      game[client.id].turn.pattern = patternCode(toPlay);
+      game[client.id].turn.player = 'Player 3';
       for (var i = 0; i < toPlay.length; i++) {
-        for (var j = 0; j < p2deck.length; j++) {
-          if (toPlay[i] === p2deck[j].code) {
-            pile.push(p2deck[j]);
-            p2move.push(toPlay[i]);
-            lastMove.push(toPlay[i]);
-            p2deck.splice(j, 1);
+        for (var j = 0; j < game[client.id].p2deck.length; j++) {
+          if (toPlay[i] === game[client.id].p2deck[j].code) {
+            game[client.id].pile.push(game[client.id].p2deck[j]);
+            game[client.id].p2move.push(toPlay[i]);
+            game[client.id].lastMove.push(toPlay[i]);
+            game[client.id].p2deck.splice(j, 1);
           }
         }
       }
-      console.log('Cards Left: ' + p2deck.length);
+      console.log('Cards Left: ' + game[client.id].p2deck.length);
       console.log('Emitting to: ' + client.id);
       // Winner
-      if (p2deck.length === 0) {
+      if (game[client.id].p2deck.length === 0) {
         clearInterval(gameTimer);
         io.to(client.id).emit('win', {
           'message': 'Player 2 wins!'
@@ -109,74 +129,74 @@ io.on('connection', function(client) {
         return;
       }
 
-      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('cpu', {
-        'p2': p2deck.length,
-        'p3': p3deck.length,
-        'p4': p4deck.length,
-        'p2move': p2move,
-        'p3move': p3move,
-        'p4move': p4move
+        'p2': game[client.id].p2deck.length,
+        'p3': game[client.id].p3deck.length,
+        'p4': game[client.id].p4deck.length,
+        'p2move': game[client.id].p2move,
+        'p3move': game[client.id].p3move,
+        'p4move': game[client.id].p4move
       });
-      io.to(client.id).emit('turn', {'turn': turn});
+      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
     }
 
-    else if (turn.player === 'Player 3') {
+    else if (game[client.id].turn.player === 'Player 3') {
       console.log('Turn: Player 3');
-      if (p1skip + p2skip + p4skip > 2) {
-        turn.pattern = '0';
-        lastMove.length = 0;
-        p1skip = 0;
-        p2skip = 0;
-        p3skip = 0;
-        p4skip = 0;
+      if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p4skip > 2) {
+        game[client.id].turn.pattern = '0';
+        game[client.id].lastMove.length = 0;
+        game[client.id].p1skip = 0;
+        game[client.id].p2skip = 0;
+        game[client.id].p3skip = 0;
+        game[client.id].p4skip = 0;
       }
 
       var cpuDeck = [];
-      for (var i = 0; i < p3deck.length; i++) {
-        cpuDeck.push(p3deck[i].code);
+      for (var i = 0; i < game[client.id].p3deck.length; i++) {
+        cpuDeck.push(game[client.id].p3deck[i].code);
       }
-      var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
+      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
 
       if (toPlay.length === 0) {
         console.log('Skip: Player 3');
-        turn.player = 'Player 4';
-        p3move.length = 0;
-        io.to(client.id).emit('turn', {'turn': turn});
+        game[client.id].turn.player = 'Player 4';
+        game[client.id].p3move.length = 0;
+        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
         io.to(client.id).emit('cpu', {
-          'p2': p2deck.length,
-          'p3': p3deck.length,
-          'p4': p4deck.length,
-          'p2move': p2move,
-          'p4move': p4move
+          'p2': game[client.id].p2deck.length,
+          'p3': game[client.id].p3deck.length,
+          'p4': game[client.id].p4deck.length,
+          'p2move': game[client.id].p2move,
+          'p4move': game[client.id].p4move
         });
-        p3skip = 1;
+        game[client.id].p3skip = 1;
         return;
       }
       else {
-        p3skip = 0;
+        game[client.id].p3skip = 0;
         console.log('Playing: ' + toPlay);
       }
 
-      pile.length = 0;
-      p3move.length = 0;
-      lastMove.length = 0;
-      turn.pattern = patternCode(toPlay);
-      turn.player = 'Player 4';
+      game[client.id].pile.length = 0;
+      game[client.id].p3move.length = 0;
+      game[client.id].lastMove.length = 0;
+      game[client.id].turn.pattern = patternCode(toPlay);
+      game[client.id].turn.player = 'Player 4';
       for (var i = 0; i < toPlay.length; i++) {
-        for (var j = 0; j < p3deck.length; j++) {
-          if (toPlay[i] === p3deck[j].code) {
-            pile.push(p3deck[j]);
-            p3move.push(toPlay[i]);
-            lastMove.push(toPlay[i]);
-            p3deck.splice(j, 1);
+        for (var j = 0; j < game[client.id].p3deck.length; j++) {
+          if (toPlay[i] === game[client.id].p3deck[j].code) {
+            game[client.id].pile.push(game[client.id].p3deck[j]);
+            game[client.id].p3move.push(toPlay[i]);
+            game[client.id].lastMove.push(toPlay[i]);
+            game[client.id].p3deck.splice(j, 1);
           }
         }
       }
-      console.log('Cards Left: ' + p3deck.length);
+      console.log('Cards Left: ' + game[client.id].p3deck.length);
       console.log('Emitting to: ' + client.id);
       // Winner
-      if (p3deck.length === 0) {
+      if (game[client.id].p3deck.length === 0) {
         clearInterval(gameTimer);
         io.to(client.id).emit('win', {
           'message': 'Player 3 wins!'
@@ -184,118 +204,123 @@ io.on('connection', function(client) {
         return;
       }
 
-      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('cpu', {
-        'p2': p2deck.length,
-        'p3': p3deck.length,
-        'p4': p4deck.length,
-        'p2move': p2move,
-        'p3move': p3move,
-        'p4move': p4move
+        'p2': game[client.id].p2deck.length,
+        'p3': game[client.id].p3deck.length,
+        'p4': game[client.id].p4deck.length,
+        'p2move': game[client.id].p2move,
+        'p3move': game[client.id].p3move,
+        'p4move': game[client.id].p4move
       });
-      io.to(client.id).emit('turn', {'turn': turn});
+      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
     }
 
-    else if (turn.player === 'Player 4') {
+    else if (game[client.id].turn.player === 'Player 4') {
       console.log('Turn: Player 4');
-      if (p1skip + p2skip + p3skip > 2) {
-        turn.pattern = '0';
-        lastMove.length = 0;
-        p1skip = 0;
-        p2skip = 0;
-        p3skip = 0;
-        p4skip = 0;
+      if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p3skip > 2) {
+        game[client.id].turn.pattern = '0';
+        game[client.id].lastMove.length = 0;
+        game[client.id].p1skip = 0;
+        game[client.id].p2skip = 0;
+        game[client.id].p3skip = 0;
+        game[client.id].p4skip = 0;
       }
 
       var cpuDeck = [];
-      for (var i = 0; i < p4deck.length; i++) {
-        cpuDeck.push(p4deck[i].code);
+      for (var i = 0; i < game[client.id].p4deck.length; i++) {
+        cpuDeck.push(game[client.id].p4deck[i].code);
       }
-      var toPlay = cpuAI(turn.pattern, cpuDeck, lastMove);
+      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
 
       if (toPlay.length === 0) {
         console.log('Skip: Player 4');
-        turn.player = client.id;
-        p4move.length = 0;
-        p4skip = 1;
-        if (p2skip + p3skip + p4skip > 2) {
-          turn.pattern = '0';
-          lastMove.length = 0;
-          p1skip = 0;
-          p2skip = 0;
-          p3skip = 0;
-          p4skip = 0;
+        game[client.id].turn.player = client.id;
+        game[client.id].p4move.length = 0;
+        game[client.id].p4skip = 1;
+
+        // Should probably extract this part later and refactor
+        // this entire section since a lot of the code is repeated.
+        if (game[client.id].p2skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
+          game[client.id].turn.pattern = '0';
+          game[client.id].lastMove.length = 0;
+          game[client.id].p1skip = 0;
+          game[client.id].p2skip = 0;
+          game[client.id].p3skip = 0;
+          game[client.id].p4skip = 0;
         }
-        io.to(client.id).emit('turn', {'turn': turn});
+        //
+
+        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
         io.to(client.id).emit('cpu', {
-          'p2': p2deck.length,
-          'p3': p3deck.length,
-          'p4': p4deck.length,
-          'p2move': p2move,
-          'p3move': p3move
+          'p2': game[client.id].p2deck.length,
+          'p3': game[client.id].p3deck.length,
+          'p4': game[client.id].p4deck.length,
+          'p2move': game[client.id].p2move,
+          'p3move': game[client.id].p3move
         });
         return;
       }
       else {
-        p4skip = 0;
+        game[client.id].p4skip = 0;
         console.log('Playing: ' + toPlay);
       }
 
-      pile.length = 0;
-      p4move.length = 0;
-      lastMove.length = 0;
-      turn.pattern = patternCode(toPlay);
-      turn.player = client.id;
+      game[client.id].pile.length = 0;
+      game[client.id].p4move.length = 0;
+      game[client.id].lastMove.length = 0;
+      game[client.id].turn.pattern = patternCode(toPlay);
+      game[client.id].turn.player = client.id;
       for (var i = 0; i < toPlay.length; i++) {
-        for (var j = 0; j < p4deck.length; j++) {
-          if (toPlay[i] === p4deck[j].code) {
-            pile.push(p4deck[j]);
-            p4move.push(toPlay[i]);
-            lastMove.push(toPlay[i]);
-            p4deck.splice(j, 1);
+        for (var j = 0; j < game[client.id].p4deck.length; j++) {
+          if (toPlay[i] === game[client.id].p4deck[j].code) {
+            game[client.id].pile.push(game[client.id].p4deck[j]);
+            game[client.id].p4move.push(toPlay[i]);
+            game[client.id].lastMove.push(toPlay[i]);
+            game[client.id].p4deck.splice(j, 1);
           }
         }
       }
-      console.log('Cards Left: ' + p4deck.length);
+      console.log('Cards Left: ' + game[client.id].p4deck.length);
       console.log('Emitting to: ' + client.id);
       // Winner
-      if (p4deck.length === 0) {
+      if (game[client.id].p4deck.length === 0) {
         clearInterval(gameTimer);
         io.to(client.id).emit('win', {
           'message': 'Player 4 wins!'
         });
         return;
       }
-      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('cpu', {
-        'p2': p2deck.length,
-        'p3': p3deck.length,
-        'p4': p4deck.length,
-        'p2move': p2move,
-        'p3move': p3move,
-        'p4move': p4move
+        'p2': game[client.id].p2deck.length,
+        'p3': game[client.id].p3deck.length,
+        'p4': game[client.id].p4deck.length,
+        'p2move': game[client.id].p2move,
+        'p3move': game[client.id].p3move,
+        'p4move': game[client.id].p4move
       });
-      io.to(client.id).emit('turn', {'turn': turn});
+      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
     }
-  }, 5000);
+  }, 1000);
 
   client.on('newGame', () => {
     console.log('New Game Button: ' + client.id);
-    p1deck.length = 0;
-    p2deck.length = 0;
-    p3deck.length = 0;
-    p4deck.length = 0;
-    p1move.length = 0;
-    p2move.length = 0;
-    p3move.length = 0;
-    p4move.length = 0;
-    p1skip = 0;
-    p2skip = 0;
-    p3skip = 0;
-    p4skip = 0;
-    lastMove.length = 0;
-    pile.length = 0;
-    turn = {
+    game[client.id].p1deck.length = 0;
+    game[client.id].p2deck.length = 0;
+    game[client.id].p3deck.length = 0;
+    game[client.id].p4deck.length = 0;
+    game[client.id].p1move.length = 0;
+    game[client.id].p2move.length = 0;
+    game[client.id].p3move.length = 0;
+    game[client.id].p4move.length = 0;
+    game[client.id].p1skip = 0;
+    game[client.id].p2skip = 0;
+    game[client.id].p3skip = 0;
+    game[client.id].p4skip = 0;
+    game[client.id].lastMove.length = 0;
+    game[client.id].pile.length = 0;
+    game[client.id].turn = {
       'player': '',
       'pattern': ''
     };
@@ -307,13 +332,13 @@ io.on('connection', function(client) {
     console.log('Play Button: ' + client.id);
 
     // Check to make sure it's a player's turn.
-    if (turn.player != client.id) return;
+    if (game[client.id].turn.player != client.id) return;
 
     var pat = patternCode(toPlay);
 
     // If no game yet, must play 3S
     console.log('Playing: ' + toPlay);
-    if (turn.pattern === '' && toPlay[0] != '3S') {
+    if (game[client.id].turn.pattern === '' && toPlay[0] != '3S') {
       io.to(client.id).emit('badPattern', {
         'message': 'Must play 3 of Spades in your pattern.'
       });
@@ -329,13 +354,13 @@ io.on('connection', function(client) {
     }
 
     // Check to see if player can make the pattern.
-    if (turn.pattern === '0') turn.pattern = pat;
+    if (game[client.id].turn.pattern === '0') game[client.id].turn.pattern = pat;
 
     // Check to make sure player is following previous pattern.
-    if (turn.pattern != '') {
-      if (turn.pattern === '2K' && pat === 'B2') {} // Do nothing.
-      else if (turn.pattern === 'B2' && pat === '2K') {} // Do nothing.
-      else if (pat != turn.pattern) {
+    if (game[client.id].turn.pattern != '') {
+      if (game[client.id].turn.pattern === '2K' && pat === 'B2') {} // Do nothing.
+      else if (game[client.id].turn.pattern === 'B2' && pat === '2K') {} // Do nothing.
+      else if (pat != game[client.id].turn.pattern) {
         io.to(client.id).emit('badPattern', {
           'message': 'Must use same pattern as previous player.'
         });
@@ -344,8 +369,8 @@ io.on('connection', function(client) {
     }
 
     // Check if player is using a higher value pattern.
-    if (lastMove.length > 0 &&
-        compareCards(toPlay[toPlay.length - 1], lastMove[lastMove.length - 1]) === -1) {
+    if (game[client.id].lastMove.length > 0 &&
+        compareCards(toPlay[toPlay.length - 1], game[client.id].lastMove[game[client.id].lastMove.length - 1]) === -1) {
       io.to(client.id).emit('badPattern', {
         'message': 'Your selected cards are lower than the current cards.'
       });
@@ -354,73 +379,73 @@ io.on('connection', function(client) {
 
     // Clear pile each time we play. May need to change later
     // if we implement game history.
-    pile.length = 0;
-    lastMove.length = 0;
-    p1skip = 0;
-    turn.pattern = pat;
-    turn.player = 'Player 2';
+    game[client.id].pile.length = 0;
+    game[client.id].lastMove.length = 0;
+    game[client.id].p1skip = 0;
+    game[client.id].turn.pattern = pat;
+    game[client.id].turn.player = 'Player 2';
     for (var i = 0; i < toPlay.length; i++) {
-      for (var j = 0; j < p1deck.length; j++) {
-        if (toPlay[i] === p1deck[j].code) {
-          pile.push(p1deck[j]);
-          p1move.push(toPlay[i]);
-          lastMove.push(toPlay[i]);
-          p1deck.splice(j, 1);
+      for (var j = 0; j < game[client.id].p1deck.length; j++) {
+        if (toPlay[i] === game[client.id].p1deck[j].code) {
+          game[client.id].pile.push(game[client.id].p1deck[j]);
+          game[client.id].p1move.push(toPlay[i]);
+          game[client.id].lastMove.push(toPlay[i]);
+          game[client.id].p1deck.splice(j, 1);
         }
       }
     }
 
-    console.log('Cards Left: ' + p1deck.length);
+    console.log('Cards Left: ' + game[client.id].p1deck.length);
     // Winner
-    if (p1deck.length === 0) {
+    if (game[client.id].p1deck.length === 0) {
       clearInterval(gameTimer);
-      io.to(client.id).emit('game', p1deck);
-      io.to(client.id).emit('pile', pile);
+      io.to(client.id).emit('game', game[client.id].p1deck);
+      io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('win', {
         'message': 'You win!'
       });
       return;
     }
-    io.to(client.id).emit('game', p1deck);
-    io.to(client.id).emit('pile', pile);
-    io.to(client.id).emit('turn', {'turn': turn});
+    io.to(client.id).emit('game', game[client.id].p1deck);
+    io.to(client.id).emit('pile', game[client.id].pile);
+    io.to(client.id).emit('turn', {'turn': game[client.id].turn});
   });
 
   client.on('skip', () => {
     console.log('Skip Button: ' + client.id);
-    if (turn.pattern === '' || turn.pattern === '0') {
+    if (game[client.id].turn.pattern === '' || game[client.id].turn.pattern === '0') {
       io.to(client.id).emit('badPattern', {
         'message': 'Cannot skip your own turn.'
       });
       return;
     }
 
-    turn.player = 'Player 2';
-    p1skip = 1;
+    game[client.id].turn.player = 'Player 2';
+    game[client.id].p1skip = 1;
     // if (p1skip + p2skip + p3skip + p4skip > 2) turn.pattern = '0';
-    p1move.length = 0;
-    io.to(client.id).emit('game', p1deck);
-    io.to(client.id).emit('turn', {'turn': turn});
+    game[client.id].p1move.length = 0;
+    io.to(client.id).emit('game', game[client.id].p1deck);
+    io.to(client.id).emit('turn', {'turn': game[client.id].turn});
   });
 
   client.on('disconnect', function() {
     console.log('Disconnected: ' + client.id);
     clearInterval(gameTimer);
-    p1deck.length = 0;
-    p2deck.length = 0;
-    p3deck.length = 0;
-    p4deck.length = 0;
-    p1move.length = 0;
-    p2move.length = 0;
-    p3move.length = 0;
-    p4move.length = 0;
-    p1skip = 0;
-    p2skip = 0;
-    p3skip = 0;
-    p4skip = 0;
-    lastMove.length = 0;
-    pile.length = 0;
-    turn = {
+    game[client.id].p1deck.length = 0;
+    game[client.id].p2deck.length = 0;
+    game[client.id].p3deck.length = 0;
+    game[client.id].p4deck.length = 0;
+    game[client.id].p1move.length = 0;
+    game[client.id].p2move.length = 0;
+    game[client.id].p3move.length = 0;
+    game[client.id].p4move.length = 0;
+    game[client.id].p1skip = 0;
+    game[client.id].p2skip = 0;
+    game[client.id].p3skip = 0;
+    game[client.id].p4skip = 0;
+    game[client.id].lastMove.length = 0;
+    game[client.id].pile.length = 0;
+    game[client.id].turn = {
       'player': '',
       'pattern': ''
     };
@@ -551,39 +576,43 @@ var newDeck = async (client) => {
       unsort4.push(draw.data.cards.pop());
     }
 
-    p1deck = sortCards(unsort1);
-    p2deck = sortCards(unsort2);
-    p3deck = sortCards(unsort3);
-    p4deck = sortCards(unsort4);
+    game[client.id].p1deck = sortCards(unsort1);
+    game[client.id].p2deck = sortCards(unsort2);
+    game[client.id].p3deck = sortCards(unsort3);
+    game[client.id].p4deck = sortCards(unsort4);
 
     for (var i = 0; i < 13; i++) {
-      if (p1deck[i].code === '3S') turn.player = client.id;
+      if (game[client.id].p1deck[i].code === '3S')
+        game[client.id].turn.player = client.id;
     }
 
     for (var i = 0; i < 13; i++) {
-      if (p2deck[i].code === '3S') turn.player = 'Player 2';
+      if (game[client.id].p2deck[i].code === '3S')
+        game[client.id].turn.player = 'Player 2';
     }
 
     for (var i = 0; i < 13; i++) {
-      if (p3deck[i].code === '3S') turn.player = 'Player 3';
+      if (game[client.id].p3deck[i].code === '3S')
+        game[client.id].turn.player = 'Player 3';
     }
 
     for (var i = 0; i < 13; i++) {
-      if (p4deck[i].code === '3S') turn.player = 'Player 4';
+      if (game[client.id].p4deck[i].code === '3S')
+        game[client.id].turn.player = 'Player 4';
     }
 
-    console.log('Turn: ' + turn.player);
-    io.to(client.id).emit('game', p1deck);
+    console.log('Turn: ' + game[client.id].turn.player);
+    io.to(client.id).emit('game', game[client.id].p1deck);
     io.to(client.id).emit('pile', []);
     io.to(client.id).emit('cpu', {
-      'p2': p2deck.length,
-      'p3': p3deck.length,
-      'p4': p4deck.length,
-      'p2move': p2move,
-      'p3move': p3move,
-      'p4move': p4move
+      'p2': game[client.id].p2deck.length,
+      'p3': game[client.id].p3deck.length,
+      'p4': game[client.id].p4deck.length,
+      'p2move': game[client.id].p2move,
+      'p3move': game[client.id].p3move,
+      'p4move': game[client.id].p4move
     });
-    io.to(client.id).emit('turn', {'turn': turn});
+    io.to(client.id).emit('turn', {'turn': game[client.id].turn});
 
   } catch (error) {
     console.log(`Error: ${error.code}`);
@@ -687,42 +716,6 @@ var patternCode = function(pat) {
   }
 
   return '0';
-};
-
-// This function takes an array and returns all combinations to calculate
-// the possible moves a player can make. Note that the array should be sorted
-// for best efficiency. Otherwise, the time complexity will be a factorial of 13,
-// which is over 6 billion possible permutations. This algorithm cuts it down to 8,191.
-// This code was found on (and modified for this project):
-// https://codereview.stackexchange.com/questions/7001/generating-all-combinations-of-an-array
-var combinations = function(deck) {
-  var fn = function(active, rest, a) {
-    if (active.length === 0 && rest.length === 0) return;
-    if (rest.length === 0) a.push(active);
-    else {
-      active.push(rest[0]);
-      fn(active, rest.slice(1), a);
-      fn(active, rest.slice(1), a);
-    }
-    return a;
-  }
-
-  return fn([], deck, []);
-};
-
-// This function returns a list of possible moves represented as a 2D array.
-var possibleMoves = function(deck) {
-  var moves = [];
-  var variation = combinations(deck);
-  console.log(variation.length);
-
-  for (var i = 0; i < variation.length; i++) {
-    if (patternCode(variation[i]) != '0') moves.push(variation[i]);
-  }
-
-  console.log(moves.length);
-
-  return moves;
 };
 
 // Computer AI
