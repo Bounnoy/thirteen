@@ -13,28 +13,6 @@ server.get('/', function(req, res) {
 });
 
 var game = {};
-// var p1deck = [];
-// var p2deck = [];
-// var p3deck = [];
-// var p4deck = [];
-// var p1move = [];
-// var p2move = [];
-// var p3move = [];
-// var p4move = [];
-// var p1skip = 0;
-// var p2skip = 0;
-// var p3skip = 0;
-// var p4skip = 0;
-//
-// var lastMove = [];
-//
-// var pile = [];
-// var turn = {
-//   'player': '',
-//   'pattern': ''
-// };
-
-
 
 io.on('connection', function(client) {
   console.log('Client connected: ' + client.id);
@@ -59,12 +37,55 @@ io.on('connection', function(client) {
     }
   };
 
-
+  console.log('Current game instances: ' + (Object.entries(game).length === 0 && game.constructor === Object ? 0 : Object.entries(game).length));
 
   newDeck(client);
 
+  // Check instant win after creating deck.
+  var winner = '', winMessage = '';
+  var winCode = 0;
+  winCode = checkInstantWin(game[client.id].p1deck);
+
+  if (winCode > 0) winner = client.id;
+  else winCode = checkInstantWin(game[client.id].p2deck);
+
+  if (winner === '' && winCode > 0) winner = 'Player 2';
+  else winCode = checkInstantWin(game[client.id].p3deck);
+
+  if (winner === '' && winCode > 0) winner = 'Player 3';
+  else winCode = checkInstantWin(game[client.id].p4deck);
+
+  if (winner === '' && winCode > 0) winner = 'Player 4';
+
+  if (winCode === 4) winMessage = ` four 2's!`;
+  if (winCode === 6) winMessage = ` six pairs!`;
+  if (winCode === 12) winMessage = ` a 12-straight!`;
+
+  if (winner != '') {
+    clearInterval(gameTimer);
+    io.to(client.id).emit('cpu', {
+      'p2': (winner === 'Player 2') ? 13 - winCode : 13,
+      'p3': (winner === 'Player 3') ? 13 - winCode : 13,
+      'p4': (winner === 'Player 4') ? 13 - winCode : 13,
+      'p2move': [],
+      'p3move': [],
+      'p4move': []
+    });
+    io.to(client.id).emit('game', game[client.id].p1deck);
+    io.to(client.id).emit('win', {
+      'message': (winner === client.id) ?
+        'Instant win! You have' + winMessage : 'Instant win! ' + winner + ' has' + winMessage
+    });
+    client.disconnect();
+  }
+
   // Continuously check for whose turn it is.
   var gameTimer = setInterval(() => {
+    if (winner != '') {
+      console.log('Game timer stopped.');
+      clearInterval(gameTimer);
+      client.disconnect();
+    }
 
     if (game[client.id].turn.player === 'Player 2') {
       console.log('Turn: Player 2');
@@ -126,6 +147,7 @@ io.on('connection', function(client) {
         io.to(client.id).emit('win', {
           'message': 'Player 2 wins!'
         });
+        client.disconnect();
         return;
       }
 
@@ -201,6 +223,7 @@ io.on('connection', function(client) {
         io.to(client.id).emit('win', {
           'message': 'Player 3 wins!'
         });
+        client.disconnect();
         return;
       }
 
@@ -289,6 +312,7 @@ io.on('connection', function(client) {
         io.to(client.id).emit('win', {
           'message': 'Player 4 wins!'
         });
+        client.disconnect();
         return;
       }
       io.to(client.id).emit('pile', game[client.id].pile);
@@ -338,6 +362,7 @@ io.on('connection', function(client) {
 
     // If no game yet, must play 3S
     console.log('Playing: ' + toPlay);
+    console.log('Pattern Code: ' + pat);
     if (game[client.id].turn.pattern === '' && toPlay[0] != '3S') {
       io.to(client.id).emit('badPattern', {
         'message': 'Must play 3 of Spades in your pattern.'
@@ -353,7 +378,7 @@ io.on('connection', function(client) {
       return;
     }
 
-    // Check to see if player can make the pattern.
+    // Check to see if player can play a new pattern.
     if (game[client.id].turn.pattern === '0') game[client.id].turn.pattern = pat;
 
     // Check to make sure player is following previous pattern.
@@ -404,8 +429,10 @@ io.on('connection', function(client) {
       io.to(client.id).emit('win', {
         'message': 'You win!'
       });
+      client.disconnect();
       return;
     }
+
     io.to(client.id).emit('game', game[client.id].p1deck);
     io.to(client.id).emit('pile', game[client.id].pile);
     io.to(client.id).emit('turn', {'turn': game[client.id].turn});
@@ -422,7 +449,6 @@ io.on('connection', function(client) {
 
     game[client.id].turn.player = 'Player 2';
     game[client.id].p1skip = 1;
-    // if (p1skip + p2skip + p3skip + p4skip > 2) turn.pattern = '0';
     game[client.id].p1move.length = 0;
     io.to(client.id).emit('game', game[client.id].p1deck);
     io.to(client.id).emit('turn', {'turn': game[client.id].turn});
@@ -431,24 +457,7 @@ io.on('connection', function(client) {
   client.on('disconnect', function() {
     console.log('Disconnected: ' + client.id);
     clearInterval(gameTimer);
-    game[client.id].p1deck.length = 0;
-    game[client.id].p2deck.length = 0;
-    game[client.id].p3deck.length = 0;
-    game[client.id].p4deck.length = 0;
-    game[client.id].p1move.length = 0;
-    game[client.id].p2move.length = 0;
-    game[client.id].p3move.length = 0;
-    game[client.id].p4move.length = 0;
-    game[client.id].p1skip = 0;
-    game[client.id].p2skip = 0;
-    game[client.id].p3skip = 0;
-    game[client.id].p4skip = 0;
-    game[client.id].lastMove.length = 0;
-    game[client.id].pile.length = 0;
-    game[client.id].turn = {
-      'player': '',
-      'pattern': ''
-    };
+    delete game[client.id];
   })
 });
 
@@ -505,7 +514,7 @@ var sortCards = function(unsorted) {
   return unsorted;
 };
 
-// This function takes in an unsorted array of objects and returns
+// This function takes in an unsorted array of cards and returns
 // a sorted version of it.
 var sortCardArray = function(unsorted) {
 
@@ -628,23 +637,10 @@ var newDeck = async (client) => {
 // _S (straights)
 // _D (double straights)
 // _T (triple straights)
-// W4 (four 2's - instant win)
-// W2 (six pairs - instant win)
-// WS (12 straight - instant win)
 // B2 (pair of 2 - pattern breaker)
 var patternCode = function(pat) {
   pat = sortCardArray(pat);
   var n = pat.length;
-
-  // Instant Win: 6 pairs
-  if (n === 12) {
-    var win = 0;
-    for (var i = 0; i < (n - 1); i += 2) {
-      if (pat[i][0] === pat[i + 1][0]) ++win;
-    }
-
-    if (win === 6) return 'W2';
-  }
 
   // Singles
   if (n === 1) return '1K';
@@ -671,7 +667,6 @@ var patternCode = function(pat) {
         pat[1][0] === pat[2][0] &&
         pat[2][0] === pat[3][0]) {
 
-        if (pat[0][0] === '2') return 'WK';
         return '4K';
     }
 
@@ -706,17 +701,55 @@ var patternCode = function(pat) {
       if (checkStraight(pat[i][0], pat[i + 1][0]) === 1) ++sCount;
     }
 
-    if (sCount === n) {
-
-      // Instant Win: 12 straight
-      if (sCount === 12) return 'WS';
-
-      return n.toString() + 'S';
-    }
+    if (sCount === n) return n.toString() + 'S';
   }
 
   return '0';
 };
+
+// This function checks an array of cards for instant win patterns.
+// Returns:
+// 4 if four 2's.
+// 6 if six pairs.
+// 12 if 12 straights.
+var checkInstantWin = function(cardObjects) {
+  var cards = [];
+  var n = cardObjects.length;
+
+  for (var i = 0; i < n; i++) {
+    cards.push(cardObjects.pop());
+  }
+
+  cards = sortCardArray(cards);
+
+  // Instant Win: 6 pairs
+  var win = 0;
+  for (var i = 0; i < n; i++) {
+    if ((i + 1) < n && cards[i][0] === cards[i + 1][0]) {
+      ++win;
+      ++i;
+    }
+  }
+  if (win === 6) return 6;
+
+
+  // Instant Win: Four 2's
+  win = 0;
+  for (var i = 0; i < n; i++) {
+    if (cards[i][0] == 2) ++win;
+  }
+  if (win === 4) return 4;
+
+
+  // Instant Win: 12 Straights
+  win = 0;
+  for (var i = 0; i < (n - 1); i++) {
+    if (checkStraight(cards[i][0], cards[i + 1][0]) === 1) ++win;
+  }
+  if (win === 12) return 12;
+
+  return 0; // This is reached when no match has been made.
+}
 
 // Computer AI
 // Pick a pattern, check CPU deck, check last move, and then return cards to play.

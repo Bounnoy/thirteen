@@ -103,8 +103,9 @@
     <script type="text/javascript">
       var toPlay = [];
 
-      var socket = io.connect('http://192.168.1.128:8000');
-      //var socket = io.connect('http://192.168.0.12:8000');
+      //var socket = io.connect('http://thirteen.sytes.net');
+      //var socket = io.connect('http://192.168.1.128:8000');
+      var socket = io.connect('http://192.168.0.12:8000');
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
@@ -175,10 +176,11 @@
         $('#btnSkip').hide();
         $('#btnPlay').hide();
         $('#playerBtn').empty().prepend(`<p style="color: "#d4f">${sData.message}</p>`);
-        $('#playerDeck').append('<button id="newGame" type="button" class="btn btn-primary mr-2 mb-2">Play Again</button>');
-        // $(document.createElement("img"))
-        //     .attr({ src: sData[i].image, style: "width: 10%; margin: 2px" })
-        //     .appendTo('#pile');
+        $('#playerDeck')
+          .append('<button id="newGame" type="button" class="btn btn-primary mr-2 mb-2">Play Again</button>')
+          .click(function() {
+            location.reload();
+          });
       });
 
       socket.on('game', function(sData) {
@@ -233,11 +235,6 @@
       $('#btnSkip').on('click', () => {
         socket.emit('skip');
       });
-
-      $('#newGame').on('click', () => {
-        socket.emit('newGame');
-        $('#newGame').detach();
-      })
 
     </script>
   </body>
