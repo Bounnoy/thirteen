@@ -373,8 +373,8 @@ io.on('connection', function(client) {
 
     // Check to make sure pattern is valid.
     if (pat === '0') {
+      console.log('Bad Pattern: Wrong pattern. Try something else.');
       io.to(client.id).emit('badPattern', {
-        console.log('Bad Pattern: Wrong pattern. Try something else.');
         'message': 'Wrong pattern. Try something else.'
       });
       return;
