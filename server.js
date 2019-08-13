@@ -34,7 +34,10 @@ io.on('connection', function(client) {
     turn: {
       'player': '',
       'pattern': ''
-    }
+    },
+    winner: '',
+    winCode: 0,
+    winMessage: ''
   };
 
   console.log('Current game instances: ' + (Object.entries(game).length === 0 && game.constructor === Object ? 0 : Object.entries(game).length));
@@ -42,291 +45,294 @@ io.on('connection', function(client) {
   newDeck(client);
 
   // Check instant win after creating deck.
-  var winner = '', winMessage = '';
-  var winCode = 0;
-  winCode = checkInstantWin(game[client.id].p1deck);
+  game[client.id].winCode = checkInstantWin(game[client.id].p1deck);
 
-  if (winCode > 0) winner = client.id;
-  else winCode = checkInstantWin(game[client.id].p2deck);
+  if (game[client.id].winCode > 0) game[client.id].winner = client.id;
+  else game[client.id].winCode = checkInstantWin(game[client.id].p2deck);
 
-  if (winner === '' && winCode > 0) winner = 'Player 2';
-  else winCode = checkInstantWin(game[client.id].p3deck);
+  if (game[client.id].winner === '' && game[client.id].winCode > 0) game[client.id].winner = 'Player 2';
+  else game[client.id].winCode = checkInstantWin(game[client.id].p3deck);
 
-  if (winner === '' && winCode > 0) winner = 'Player 3';
-  else winCode = checkInstantWin(game[client.id].p4deck);
+  if (game[client.id].winner === '' && game[client.id].winCode > 0) game[client.id].winner = 'Player 3';
+  else game[client.id].winCode = checkInstantWin(game[client.id].p4deck);
 
-  if (winner === '' && winCode > 0) winner = 'Player 4';
+  if (game[client.id].winner === '' && game[client.id].winCode > 0) game[client.id].winner = 'Player 4';
 
-  if (winCode === 4) winMessage = ` four 2's!`;
-  if (winCode === 6) winMessage = ` six pairs!`;
-  if (winCode === 12) winMessage = ` a 12-straight!`;
+  if (game[client.id].winCode === 4) game[client.id].winMessage = ` four 2's!`;
+  if (game[client.id].winCode === 6) game[client.id].winMessage = ` six pairs!`;
+  if (game[client.id].winCode === 12) game[client.id].winMessage = ` a 12-straight!`;
 
-  if (winner != '') {
+  if (game[client.id].winner != '') {
     clearInterval(gameTimer);
     io.to(client.id).emit('cpu', {
-      'p2': (winner === 'Player 2') ? 13 - winCode : 13,
-      'p3': (winner === 'Player 3') ? 13 - winCode : 13,
-      'p4': (winner === 'Player 4') ? 13 - winCode : 13,
+      'p2': (game[client.id].winner === 'Player 2') ? 13 - game[client.id].winCode : 13,
+      'p3': (game[client.id].winner === 'Player 3') ? 13 - game[client.id].winCode : 13,
+      'p4': (game[client.id].winner === 'Player 4') ? 13 - game[client.id].winCode : 13,
       'p2move': [],
       'p3move': [],
       'p4move': []
     });
     io.to(client.id).emit('game', game[client.id].p1deck);
     io.to(client.id).emit('win', {
-      'message': (winner === client.id) ?
-        'Instant win! You have' + winMessage : 'Instant win! ' + winner + ' has' + winMessage
+      'message': (game[client.id].winner === client.id) ?
+        'Instant win! You have' + game[client.id].winMessage : 'Instant win! ' + game[client.id].winner + ' has' + game[client.id].winMessage
     });
     client.disconnect();
   }
 
-  // Continuously check for whose turn it is.
-  var gameTimer = setInterval(() => {
-    if (winner != '') {
-      console.log('Game timer stopped.');
-      clearInterval(gameTimer);
-      client.disconnect();
-    }
+  game[client.id].timer = gameTimer(client, io);
 
-    if (game[client.id].turn.player === 'Player 2') {
-      console.log('Turn: Player 2');
-      if (game[client.id].p1skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
-        game[client.id].turn.pattern = '0';
-        game[client.id].lastMove.length = 0;
-        game[client.id].p1skip = 0;
-        game[client.id].p2skip = 0;
-        game[client.id].p3skip = 0;
-        game[client.id].p4skip = 0;
-      }
-
-      var cpuDeck = [];
-      for (var i = 0; i < game[client.id].p2deck.length; i++) {
-        cpuDeck.push(game[client.id].p2deck[i].code);
-      }
-      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
-
-      if (toPlay.length === 0) {
-        console.log('Skip: Player 2');
-        game[client.id].turn.player = 'Player 3';
-        game[client.id].p2move.length = 0;
-        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
-        io.to(client.id).emit('cpu', {
-          'p2': game[client.id].p2deck.length,
-          'p3': game[client.id].p3deck.length,
-          'p4': game[client.id].p4deck.length,
-          'p3move': game[client.id].p3move,
-          'p4move': game[client.id].p4move
-        });
-        game[client.id].p2skip = 1;
-        return;
-      }
-      else {
-        game[client.id].p2skip = 0;
-        console.log('Playing: ' + toPlay);
-      }
-
-      game[client.id].pile.length = 0;
-      game[client.id].p2move.length = 0;
-      game[client.id].lastMove.length = 0;
-      game[client.id].turn.pattern = patternCode(toPlay);
-      game[client.id].turn.player = 'Player 3';
-      for (var i = 0; i < toPlay.length; i++) {
-        for (var j = 0; j < game[client.id].p2deck.length; j++) {
-          if (toPlay[i] === game[client.id].p2deck[j].code) {
-            game[client.id].pile.push(game[client.id].p2deck[j]);
-            game[client.id].p2move.push(toPlay[i]);
-            game[client.id].lastMove.push(toPlay[i]);
-            game[client.id].p2deck.splice(j, 1);
-          }
-        }
-      }
-      console.log('Cards Left: ' + game[client.id].p2deck.length);
-      console.log('Emitting to: ' + client.id);
-      // Winner
-      if (game[client.id].p2deck.length === 0) {
-        clearInterval(gameTimer);
-        io.to(client.id).emit('win', {
-          'message': 'Player 2 wins!'
-        });
-        client.disconnect();
-        return;
-      }
-
-      io.to(client.id).emit('pile', game[client.id].pile);
-      io.to(client.id).emit('cpu', {
-        'p2': game[client.id].p2deck.length,
-        'p3': game[client.id].p3deck.length,
-        'p4': game[client.id].p4deck.length,
-        'p2move': game[client.id].p2move,
-        'p3move': game[client.id].p3move,
-        'p4move': game[client.id].p4move
-      });
-      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
-    }
-
-    else if (game[client.id].turn.player === 'Player 3') {
-      console.log('Turn: Player 3');
-      if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p4skip > 2) {
-        game[client.id].turn.pattern = '0';
-        game[client.id].lastMove.length = 0;
-        game[client.id].p1skip = 0;
-        game[client.id].p2skip = 0;
-        game[client.id].p3skip = 0;
-        game[client.id].p4skip = 0;
-      }
-
-      var cpuDeck = [];
-      for (var i = 0; i < game[client.id].p3deck.length; i++) {
-        cpuDeck.push(game[client.id].p3deck[i].code);
-      }
-      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
-
-      if (toPlay.length === 0) {
-        console.log('Skip: Player 3');
-        game[client.id].turn.player = 'Player 4';
-        game[client.id].p3move.length = 0;
-        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
-        io.to(client.id).emit('cpu', {
-          'p2': game[client.id].p2deck.length,
-          'p3': game[client.id].p3deck.length,
-          'p4': game[client.id].p4deck.length,
-          'p2move': game[client.id].p2move,
-          'p4move': game[client.id].p4move
-        });
-        game[client.id].p3skip = 1;
-        return;
-      }
-      else {
-        game[client.id].p3skip = 0;
-        console.log('Playing: ' + toPlay);
-      }
-
-      game[client.id].pile.length = 0;
-      game[client.id].p3move.length = 0;
-      game[client.id].lastMove.length = 0;
-      game[client.id].turn.pattern = patternCode(toPlay);
-      game[client.id].turn.player = 'Player 4';
-      for (var i = 0; i < toPlay.length; i++) {
-        for (var j = 0; j < game[client.id].p3deck.length; j++) {
-          if (toPlay[i] === game[client.id].p3deck[j].code) {
-            game[client.id].pile.push(game[client.id].p3deck[j]);
-            game[client.id].p3move.push(toPlay[i]);
-            game[client.id].lastMove.push(toPlay[i]);
-            game[client.id].p3deck.splice(j, 1);
-          }
-        }
-      }
-      console.log('Cards Left: ' + game[client.id].p3deck.length);
-      console.log('Emitting to: ' + client.id);
-      // Winner
-      if (game[client.id].p3deck.length === 0) {
-        clearInterval(gameTimer);
-        io.to(client.id).emit('win', {
-          'message': 'Player 3 wins!'
-        });
-        client.disconnect();
-        return;
-      }
-
-      io.to(client.id).emit('pile', game[client.id].pile);
-      io.to(client.id).emit('cpu', {
-        'p2': game[client.id].p2deck.length,
-        'p3': game[client.id].p3deck.length,
-        'p4': game[client.id].p4deck.length,
-        'p2move': game[client.id].p2move,
-        'p3move': game[client.id].p3move,
-        'p4move': game[client.id].p4move
-      });
-      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
-    }
-
-    else if (game[client.id].turn.player === 'Player 4') {
-      console.log('Turn: Player 4');
-      if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p3skip > 2) {
-        game[client.id].turn.pattern = '0';
-        game[client.id].lastMove.length = 0;
-        game[client.id].p1skip = 0;
-        game[client.id].p2skip = 0;
-        game[client.id].p3skip = 0;
-        game[client.id].p4skip = 0;
-      }
-
-      var cpuDeck = [];
-      for (var i = 0; i < game[client.id].p4deck.length; i++) {
-        cpuDeck.push(game[client.id].p4deck[i].code);
-      }
-      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
-
-      if (toPlay.length === 0) {
-        console.log('Skip: Player 4');
-        game[client.id].turn.player = client.id;
-        game[client.id].p4move.length = 0;
-        game[client.id].p4skip = 1;
-
-        // Should probably extract this part later and refactor
-        // this entire section since a lot of the code is repeated.
-        if (game[client.id].p2skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
-          game[client.id].turn.pattern = '0';
-          game[client.id].lastMove.length = 0;
-          game[client.id].p1skip = 0;
-          game[client.id].p2skip = 0;
-          game[client.id].p3skip = 0;
-          game[client.id].p4skip = 0;
-        }
-        //
-
-        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
-        io.to(client.id).emit('cpu', {
-          'p2': game[client.id].p2deck.length,
-          'p3': game[client.id].p3deck.length,
-          'p4': game[client.id].p4deck.length,
-          'p2move': game[client.id].p2move,
-          'p3move': game[client.id].p3move
-        });
-        return;
-      }
-      else {
-        game[client.id].p4skip = 0;
-        console.log('Playing: ' + toPlay);
-      }
-
-      game[client.id].pile.length = 0;
-      game[client.id].p4move.length = 0;
-      game[client.id].lastMove.length = 0;
-      game[client.id].turn.pattern = patternCode(toPlay);
-      game[client.id].turn.player = client.id;
-      for (var i = 0; i < toPlay.length; i++) {
-        for (var j = 0; j < game[client.id].p4deck.length; j++) {
-          if (toPlay[i] === game[client.id].p4deck[j].code) {
-            game[client.id].pile.push(game[client.id].p4deck[j]);
-            game[client.id].p4move.push(toPlay[i]);
-            game[client.id].lastMove.push(toPlay[i]);
-            game[client.id].p4deck.splice(j, 1);
-          }
-        }
-      }
-      console.log('Cards Left: ' + game[client.id].p4deck.length);
-      console.log('Emitting to: ' + client.id);
-      // Winner
-      if (game[client.id].p4deck.length === 0) {
-        clearInterval(gameTimer);
-        io.to(client.id).emit('win', {
-          'message': 'Player 4 wins!'
-        });
-        client.disconnect();
-        return;
-      }
-      io.to(client.id).emit('pile', game[client.id].pile);
-      io.to(client.id).emit('cpu', {
-        'p2': game[client.id].p2deck.length,
-        'p3': game[client.id].p3deck.length,
-        'p4': game[client.id].p4deck.length,
-        'p2move': game[client.id].p2move,
-        'p3move': game[client.id].p3move,
-        'p4move': game[client.id].p4move
-      });
-      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
-    }
-  }, 1000);
+  // // Continuously check for whose turn it is.
+  // var gameTimer = setInterval((client, io) => {
+  //   if (game[client.id].winner != '') {
+  //     console.log('Game timer stopped.');
+  //     clearInterval(gameTimer);
+  //     client.disconnect();
+  //   }
+  //
+  //   if (game[client.id].turn.player === 'Player 2') {
+  //     console.log('Turn: Player 2');
+  //     if (game[client.id].p1skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
+  //       game[client.id].turn.pattern = '0';
+  //       game[client.id].lastMove.length = 0;
+  //       game[client.id].p1skip = 0;
+  //       game[client.id].p2skip = 0;
+  //       game[client.id].p3skip = 0;
+  //       game[client.id].p4skip = 0;
+  //     }
+  //
+  //     var cpuDeck = [];
+  //     for (var i = 0; i < game[client.id].p2deck.length; i++) {
+  //       cpuDeck.push(game[client.id].p2deck[i].code);
+  //     }
+  //     var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
+  //
+  //     if (toPlay.length === 0) {
+  //       console.log('Skip: Player 2');
+  //       game[client.id].turn.player = 'Player 3';
+  //       game[client.id].p2move.length = 0;
+  //       io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+  //       io.to(client.id).emit('cpu', {
+  //         'p2': game[client.id].p2deck.length,
+  //         'p3': game[client.id].p3deck.length,
+  //         'p4': game[client.id].p4deck.length,
+  //         'p3move': game[client.id].p3move,
+  //         'p4move': game[client.id].p4move
+  //       });
+  //       game[client.id].p2skip = 1;
+  //       return;
+  //     }
+  //     else {
+  //       game[client.id].p2skip = 0;
+  //       console.log('Playing: ' + toPlay);
+  //     }
+  //
+  //     game[client.id].pile.length = 0;
+  //     game[client.id].p2move.length = 0;
+  //     game[client.id].lastMove.length = 0;
+  //     game[client.id].turn.pattern = patternCode(toPlay);
+  //     game[client.id].turn.player = 'Player 3';
+  //     for (var i = 0; i < toPlay.length; i++) {
+  //       for (var j = 0; j < game[client.id].p2deck.length; j++) {
+  //         if (toPlay[i] === game[client.id].p2deck[j].code) {
+  //           game[client.id].pile.push(game[client.id].p2deck[j]);
+  //           game[client.id].p2move.push(toPlay[i]);
+  //           game[client.id].lastMove.push(toPlay[i]);
+  //           game[client.id].p2deck.splice(j, 1);
+  //         }
+  //       }
+  //     }
+  //     console.log('Cards Left: ' + game[client.id].p2deck.length);
+  //     console.log('Emitting to: ' + client.id);
+  //     // Winner
+  //     if (game[client.id].p2deck.length === 0) {
+  //       console.log('Winner: Player 2');
+  //       clearInterval(gameTimer);
+  //       io.to(client.id).emit('win', {
+  //         'message': 'Player 2 wins!'
+  //       });
+  //       client.disconnect();
+  //       return;
+  //     }
+  //
+  //     io.to(client.id).emit('pile', game[client.id].pile);
+  //     io.to(client.id).emit('cpu', {
+  //       'p2': game[client.id].p2deck.length,
+  //       'p3': game[client.id].p3deck.length,
+  //       'p4': game[client.id].p4deck.length,
+  //       'p2move': game[client.id].p2move,
+  //       'p3move': game[client.id].p3move,
+  //       'p4move': game[client.id].p4move
+  //     });
+  //     io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+  //   }
+  //
+  //   else if (game[client.id].turn.player === 'Player 3') {
+  //     console.log('Turn: Player 3');
+  //     if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p4skip > 2) {
+  //       game[client.id].turn.pattern = '0';
+  //       game[client.id].lastMove.length = 0;
+  //       game[client.id].p1skip = 0;
+  //       game[client.id].p2skip = 0;
+  //       game[client.id].p3skip = 0;
+  //       game[client.id].p4skip = 0;
+  //     }
+  //
+  //     var cpuDeck = [];
+  //     for (var i = 0; i < game[client.id].p3deck.length; i++) {
+  //       cpuDeck.push(game[client.id].p3deck[i].code);
+  //     }
+  //     var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
+  //
+  //     if (toPlay.length === 0) {
+  //       console.log('Skip: Player 3');
+  //       game[client.id].turn.player = 'Player 4';
+  //       game[client.id].p3move.length = 0;
+  //       io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+  //       io.to(client.id).emit('cpu', {
+  //         'p2': game[client.id].p2deck.length,
+  //         'p3': game[client.id].p3deck.length,
+  //         'p4': game[client.id].p4deck.length,
+  //         'p2move': game[client.id].p2move,
+  //         'p4move': game[client.id].p4move
+  //       });
+  //       game[client.id].p3skip = 1;
+  //       return;
+  //     }
+  //     else {
+  //       game[client.id].p3skip = 0;
+  //       console.log('Playing: ' + toPlay);
+  //     }
+  //
+  //     game[client.id].pile.length = 0;
+  //     game[client.id].p3move.length = 0;
+  //     game[client.id].lastMove.length = 0;
+  //     game[client.id].turn.pattern = patternCode(toPlay);
+  //     game[client.id].turn.player = 'Player 4';
+  //     for (var i = 0; i < toPlay.length; i++) {
+  //       for (var j = 0; j < game[client.id].p3deck.length; j++) {
+  //         if (toPlay[i] === game[client.id].p3deck[j].code) {
+  //           game[client.id].pile.push(game[client.id].p3deck[j]);
+  //           game[client.id].p3move.push(toPlay[i]);
+  //           game[client.id].lastMove.push(toPlay[i]);
+  //           game[client.id].p3deck.splice(j, 1);
+  //         }
+  //       }
+  //     }
+  //     console.log('Cards Left: ' + game[client.id].p3deck.length);
+  //     console.log('Emitting to: ' + client.id);
+  //     // Winner
+  //     if (game[client.id].p3deck.length === 0) {
+  //       console.log('Winner: Player 3');
+  //       clearInterval(gameTimer);
+  //       io.to(client.id).emit('win', {
+  //         'message': 'Player 3 wins!'
+  //       });
+  //       client.disconnect();
+  //       return;
+  //     }
+  //
+  //     io.to(client.id).emit('pile', game[client.id].pile);
+  //     io.to(client.id).emit('cpu', {
+  //       'p2': game[client.id].p2deck.length,
+  //       'p3': game[client.id].p3deck.length,
+  //       'p4': game[client.id].p4deck.length,
+  //       'p2move': game[client.id].p2move,
+  //       'p3move': game[client.id].p3move,
+  //       'p4move': game[client.id].p4move
+  //     });
+  //     io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+  //   }
+  //
+  //   else if (game[client.id].turn.player === 'Player 4') {
+  //     console.log('Turn: Player 4');
+  //     if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p3skip > 2) {
+  //       game[client.id].turn.pattern = '0';
+  //       game[client.id].lastMove.length = 0;
+  //       game[client.id].p1skip = 0;
+  //       game[client.id].p2skip = 0;
+  //       game[client.id].p3skip = 0;
+  //       game[client.id].p4skip = 0;
+  //     }
+  //
+  //     var cpuDeck = [];
+  //     for (var i = 0; i < game[client.id].p4deck.length; i++) {
+  //       cpuDeck.push(game[client.id].p4deck[i].code);
+  //     }
+  //     var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
+  //
+  //     if (toPlay.length === 0) {
+  //       console.log('Skip: Player 4');
+  //       game[client.id].turn.player = client.id;
+  //       game[client.id].p4move.length = 0;
+  //       game[client.id].p4skip = 1;
+  //
+  //       // Should probably extract this part later and refactor
+  //       // this entire section since a lot of the code is repeated.
+  //       if (game[client.id].p2skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
+  //         game[client.id].turn.pattern = '0';
+  //         game[client.id].lastMove.length = 0;
+  //         game[client.id].p1skip = 0;
+  //         game[client.id].p2skip = 0;
+  //         game[client.id].p3skip = 0;
+  //         game[client.id].p4skip = 0;
+  //       }
+  //       //
+  //
+  //       io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+  //       io.to(client.id).emit('cpu', {
+  //         'p2': game[client.id].p2deck.length,
+  //         'p3': game[client.id].p3deck.length,
+  //         'p4': game[client.id].p4deck.length,
+  //         'p2move': game[client.id].p2move,
+  //         'p3move': game[client.id].p3move
+  //       });
+  //       return;
+  //     }
+  //     else {
+  //       game[client.id].p4skip = 0;
+  //       console.log('Playing: ' + toPlay);
+  //     }
+  //
+  //     game[client.id].pile.length = 0;
+  //     game[client.id].p4move.length = 0;
+  //     game[client.id].lastMove.length = 0;
+  //     game[client.id].turn.pattern = patternCode(toPlay);
+  //     game[client.id].turn.player = client.id;
+  //     for (var i = 0; i < toPlay.length; i++) {
+  //       for (var j = 0; j < game[client.id].p4deck.length; j++) {
+  //         if (toPlay[i] === game[client.id].p4deck[j].code) {
+  //           game[client.id].pile.push(game[client.id].p4deck[j]);
+  //           game[client.id].p4move.push(toPlay[i]);
+  //           game[client.id].lastMove.push(toPlay[i]);
+  //           game[client.id].p4deck.splice(j, 1);
+  //         }
+  //       }
+  //     }
+  //     console.log('Cards Left: ' + game[client.id].p4deck.length);
+  //     console.log('Emitting to: ' + client.id);
+  //     // Winner
+  //     if (game[client.id].p4deck.length === 0) {
+  //       console.log('Winner: Player 4');
+  //       clearInterval(gameTimer);
+  //       io.to(client.id).emit('win', {
+  //         'message': 'Player 4 wins!'
+  //       });
+  //       client.disconnect();
+  //       return;
+  //     }
+  //     io.to(client.id).emit('pile', game[client.id].pile);
+  //     io.to(client.id).emit('cpu', {
+  //       'p2': game[client.id].p2deck.length,
+  //       'p3': game[client.id].p3deck.length,
+  //       'p4': game[client.id].p4deck.length,
+  //       'p2move': game[client.id].p2move,
+  //       'p3move': game[client.id].p3move,
+  //       'p4move': game[client.id].p4move
+  //     });
+  //     io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+  //   }
+  // }, 1000);
 
   client.on('newGame', () => {
     console.log('New Game Button: ' + client.id);
@@ -461,7 +467,7 @@ io.on('connection', function(client) {
 
   client.on('disconnect', function() {
     console.log('Disconnected: ' + client.id);
-    clearInterval(gameTimer);
+    //clearInterval(game[client.id].timer);
     delete game[client.id];
   })
 });
@@ -904,4 +910,265 @@ var cpuAI = function(patCode, cpuDeck, lastMove) {
   }
 
   return [];
+};
+
+// Continuously check for whose turn it is.
+var gameTimer = (client, io) => {
+  var innerTimer = setInterval(() => {
+
+    // Self check.
+    if (game.hasOwnProperty(client.id) === false) {
+      clearInterval(innerTimer);
+      return;
+    }
+
+    if (game[client.id].winner != '') {
+      console.log('Game timer stopped.');
+      clearInterval(gameTimer);
+      client.disconnect();
+    }
+
+    if (game[client.id].turn.player === 'Player 2') {
+      console.log('Turn: Player 2');
+      if (game[client.id].p1skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
+        game[client.id].turn.pattern = '0';
+        game[client.id].lastMove.length = 0;
+        game[client.id].p1skip = 0;
+        game[client.id].p2skip = 0;
+        game[client.id].p3skip = 0;
+        game[client.id].p4skip = 0;
+      }
+
+      var cpuDeck = [];
+      for (var i = 0; i < game[client.id].p2deck.length; i++) {
+        cpuDeck.push(game[client.id].p2deck[i].code);
+      }
+      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
+
+      if (toPlay.length === 0) {
+        console.log('Skip: Player 2');
+        game[client.id].turn.player = 'Player 3';
+        game[client.id].p2move.length = 0;
+        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+        io.to(client.id).emit('cpu', {
+          'p2': game[client.id].p2deck.length,
+          'p3': game[client.id].p3deck.length,
+          'p4': game[client.id].p4deck.length,
+          'p3move': game[client.id].p3move,
+          'p4move': game[client.id].p4move
+        });
+        game[client.id].p2skip = 1;
+        return;
+      }
+      else {
+        game[client.id].p2skip = 0;
+        console.log('Playing: ' + toPlay);
+      }
+
+      game[client.id].pile.length = 0;
+      game[client.id].p2move.length = 0;
+      game[client.id].lastMove.length = 0;
+      game[client.id].turn.pattern = patternCode(toPlay);
+      game[client.id].turn.player = 'Player 3';
+      for (var i = 0; i < toPlay.length; i++) {
+        for (var j = 0; j < game[client.id].p2deck.length; j++) {
+          if (toPlay[i] === game[client.id].p2deck[j].code) {
+            game[client.id].pile.push(game[client.id].p2deck[j]);
+            game[client.id].p2move.push(toPlay[i]);
+            game[client.id].lastMove.push(toPlay[i]);
+            game[client.id].p2deck.splice(j, 1);
+          }
+        }
+      }
+      console.log('Cards Left: ' + game[client.id].p2deck.length);
+      console.log('Emitting to: ' + client.id);
+      // Winner
+      if (game[client.id].p2deck.length === 0) {
+        console.log('Winner: Player 2');
+        clearInterval(gameTimer);
+        io.to(client.id).emit('win', {
+          'message': 'Player 2 wins!'
+        });
+        client.disconnect();
+        return;
+      }
+
+      io.to(client.id).emit('pile', game[client.id].pile);
+      io.to(client.id).emit('cpu', {
+        'p2': game[client.id].p2deck.length,
+        'p3': game[client.id].p3deck.length,
+        'p4': game[client.id].p4deck.length,
+        'p2move': game[client.id].p2move,
+        'p3move': game[client.id].p3move,
+        'p4move': game[client.id].p4move
+      });
+      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+    }
+
+    else if (game[client.id].turn.player === 'Player 3') {
+      console.log('Turn: Player 3');
+      if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p4skip > 2) {
+        game[client.id].turn.pattern = '0';
+        game[client.id].lastMove.length = 0;
+        game[client.id].p1skip = 0;
+        game[client.id].p2skip = 0;
+        game[client.id].p3skip = 0;
+        game[client.id].p4skip = 0;
+      }
+
+      var cpuDeck = [];
+      for (var i = 0; i < game[client.id].p3deck.length; i++) {
+        cpuDeck.push(game[client.id].p3deck[i].code);
+      }
+      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
+
+      if (toPlay.length === 0) {
+        console.log('Skip: Player 3');
+        game[client.id].turn.player = 'Player 4';
+        game[client.id].p3move.length = 0;
+        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+        io.to(client.id).emit('cpu', {
+          'p2': game[client.id].p2deck.length,
+          'p3': game[client.id].p3deck.length,
+          'p4': game[client.id].p4deck.length,
+          'p2move': game[client.id].p2move,
+          'p4move': game[client.id].p4move
+        });
+        game[client.id].p3skip = 1;
+        return;
+      }
+      else {
+        game[client.id].p3skip = 0;
+        console.log('Playing: ' + toPlay);
+      }
+
+      game[client.id].pile.length = 0;
+      game[client.id].p3move.length = 0;
+      game[client.id].lastMove.length = 0;
+      game[client.id].turn.pattern = patternCode(toPlay);
+      game[client.id].turn.player = 'Player 4';
+      for (var i = 0; i < toPlay.length; i++) {
+        for (var j = 0; j < game[client.id].p3deck.length; j++) {
+          if (toPlay[i] === game[client.id].p3deck[j].code) {
+            game[client.id].pile.push(game[client.id].p3deck[j]);
+            game[client.id].p3move.push(toPlay[i]);
+            game[client.id].lastMove.push(toPlay[i]);
+            game[client.id].p3deck.splice(j, 1);
+          }
+        }
+      }
+      console.log('Cards Left: ' + game[client.id].p3deck.length);
+      console.log('Emitting to: ' + client.id);
+      // Winner
+      if (game[client.id].p3deck.length === 0) {
+        console.log('Winner: Player 3');
+        clearInterval(gameTimer);
+        io.to(client.id).emit('win', {
+          'message': 'Player 3 wins!'
+        });
+        client.disconnect();
+        return;
+      }
+
+      io.to(client.id).emit('pile', game[client.id].pile);
+      io.to(client.id).emit('cpu', {
+        'p2': game[client.id].p2deck.length,
+        'p3': game[client.id].p3deck.length,
+        'p4': game[client.id].p4deck.length,
+        'p2move': game[client.id].p2move,
+        'p3move': game[client.id].p3move,
+        'p4move': game[client.id].p4move
+      });
+      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+    }
+
+    else if (game[client.id].turn.player === 'Player 4') {
+      console.log('Turn: Player 4');
+      if (game[client.id].p1skip + game[client.id].p2skip + game[client.id].p3skip > 2) {
+        game[client.id].turn.pattern = '0';
+        game[client.id].lastMove.length = 0;
+        game[client.id].p1skip = 0;
+        game[client.id].p2skip = 0;
+        game[client.id].p3skip = 0;
+        game[client.id].p4skip = 0;
+      }
+
+      var cpuDeck = [];
+      for (var i = 0; i < game[client.id].p4deck.length; i++) {
+        cpuDeck.push(game[client.id].p4deck[i].code);
+      }
+      var toPlay = cpuAI(game[client.id].turn.pattern, cpuDeck, game[client.id].lastMove);
+
+      if (toPlay.length === 0) {
+        console.log('Skip: Player 4');
+        game[client.id].turn.player = client.id;
+        game[client.id].p4move.length = 0;
+        game[client.id].p4skip = 1;
+
+        // Should probably extract this part later and refactor
+        // this entire section since a lot of the code is repeated.
+        if (game[client.id].p2skip + game[client.id].p3skip + game[client.id].p4skip > 2) {
+          game[client.id].turn.pattern = '0';
+          game[client.id].lastMove.length = 0;
+          game[client.id].p1skip = 0;
+          game[client.id].p2skip = 0;
+          game[client.id].p3skip = 0;
+          game[client.id].p4skip = 0;
+        }
+        //
+
+        io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+        io.to(client.id).emit('cpu', {
+          'p2': game[client.id].p2deck.length,
+          'p3': game[client.id].p3deck.length,
+          'p4': game[client.id].p4deck.length,
+          'p2move': game[client.id].p2move,
+          'p3move': game[client.id].p3move
+        });
+        return;
+      }
+      else {
+        game[client.id].p4skip = 0;
+        console.log('Playing: ' + toPlay);
+      }
+
+      game[client.id].pile.length = 0;
+      game[client.id].p4move.length = 0;
+      game[client.id].lastMove.length = 0;
+      game[client.id].turn.pattern = patternCode(toPlay);
+      game[client.id].turn.player = client.id;
+      for (var i = 0; i < toPlay.length; i++) {
+        for (var j = 0; j < game[client.id].p4deck.length; j++) {
+          if (toPlay[i] === game[client.id].p4deck[j].code) {
+            game[client.id].pile.push(game[client.id].p4deck[j]);
+            game[client.id].p4move.push(toPlay[i]);
+            game[client.id].lastMove.push(toPlay[i]);
+            game[client.id].p4deck.splice(j, 1);
+          }
+        }
+      }
+      console.log('Cards Left: ' + game[client.id].p4deck.length);
+      console.log('Emitting to: ' + client.id);
+      // Winner
+      if (game[client.id].p4deck.length === 0) {
+        console.log('Winner: Player 4');
+        clearInterval(gameTimer);
+        io.to(client.id).emit('win', {
+          'message': 'Player 4 wins!'
+        });
+        client.disconnect();
+        return;
+      }
+      io.to(client.id).emit('pile', game[client.id].pile);
+      io.to(client.id).emit('cpu', {
+        'p2': game[client.id].p2deck.length,
+        'p3': game[client.id].p3deck.length,
+        'p4': game[client.id].p4deck.length,
+        'p2move': game[client.id].p2move,
+        'p3move': game[client.id].p3move,
+        'p4move': game[client.id].p4move
+      });
+      io.to(client.id).emit('turn', {'turn': game[client.id].turn});
+    }
+  }, 1000);
 };
