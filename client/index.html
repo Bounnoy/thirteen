@@ -82,9 +82,6 @@
         <div class="row">
           <div id="playerDeck" class="display-inline" style="margin: auto; text-align: center">
             <div id="playerBtn"></div>
-            <button id="btnReset" type="button" class="btn btn-primary mr-2 mb-2">Reset</button>
-            <button id="btnSkip" type="button" class="btn btn-primary mr-2 mb-2">Skip</button>
-            <button id="btnPlay" type="button" class="btn btn-primary mr-2 mb-2">Play</button>
           </div>
 
           <div class="col-md-12" align="center" id='pDeck'>
@@ -103,9 +100,9 @@
     <script type="text/javascript">
       var toPlay = [];
 
-      //var socket = io.connect('http://thirteen.sytes.net');
+      var socket = io.connect('http://thirteen.sytes.net');
       //var socket = io.connect('http://192.168.1.128:8000');
-      var socket = io.connect('http://192.168.0.12:8000');
+      //var socket = io.connect('http://192.168.0.12:8000');
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
@@ -156,18 +153,24 @@
       socket.on('turn', function(sData) {
         if (sData.turn.player === socket.id) {
           $('#playerBtn').empty();
-          $('#btnReset').show();
+          $('#playerDeck').append('<button id="btnReset" type="button" class="btn btn-primary mr-2 mb-2">Reset</button>');
           if (sData.turn.pattern != '0') {
-            $('#btnSkip').show();
+            $('#playerDeck')
+              .append($('<button id="btnSkip" type="button" class="btn btn-primary mr-2 mb-2">Skip</button>')
+              .click(function() { socket.emit('skip'); }));
           } else {
             $('#playerBtn').prepend(`<p>No one else can go, play any pattern.</p>`);
           }
-          $('#btnPlay').show();
+          $('#playerDeck')
+            .append($('<button id="btnPlay" type="button" class="btn btn-primary mr-2 mb-2">Play</button>')
+            .click(function() {
+              socket.emit('play', toPlay);
+            }));
         } else {
           $('#playerBtn').empty().prepend(`<p>${sData.turn.player}'s turn...</p>`);
-          $('#btnReset').hide();
-          $('#btnSkip').hide();
-          $('#btnPlay').hide();
+          $('#btnReset').remove();
+          $('#btnSkip').remove();
+          $('#btnPlay').remove();
         }
       });
 
@@ -226,14 +229,6 @@
 
       socket.on('badPattern', (mes) => {
         $('#playerBtn').empty().prepend('<p style="color: red">' + mes.message + '</p>');
-      });
-
-      $('#btnPlay').on('click', () => {
-        socket.emit('play', toPlay);
-      });
-
-      $('#btnSkip').on('click', () => {
-        socket.emit('skip');
       });
 
     </script>

@@ -354,7 +354,7 @@ io.on('connection', function(client) {
   client.on('play', function(toPlay) {
 
     console.log('Play Button: ' + client.id);
-
+    console.log('Turn: ' + game[client.id].turn.player);
     // Check to make sure it's a player's turn.
     if (game[client.id].turn.player != client.id) return;
 
@@ -364,6 +364,7 @@ io.on('connection', function(client) {
     console.log('Playing: ' + toPlay);
     console.log('Pattern Code: ' + pat);
     if (game[client.id].turn.pattern === '' && toPlay[0] != '3S') {
+      console.log('Bad Pattern: Must play 3 of Spades.');
       io.to(client.id).emit('badPattern', {
         'message': 'Must play 3 of Spades in your pattern.'
       });
@@ -373,6 +374,7 @@ io.on('connection', function(client) {
     // Check to make sure pattern is valid.
     if (pat === '0') {
       io.to(client.id).emit('badPattern', {
+        console.log('Bad Pattern: Wrong pattern. Try something else.');
         'message': 'Wrong pattern. Try something else.'
       });
       return;
@@ -386,6 +388,7 @@ io.on('connection', function(client) {
       if (game[client.id].turn.pattern === '2K' && pat === 'B2') {} // Do nothing.
       else if (game[client.id].turn.pattern === 'B2' && pat === '2K') {} // Do nothing.
       else if (pat != game[client.id].turn.pattern) {
+        console.log('Bad Pattern: Must use same pattern as previous player.');
         io.to(client.id).emit('badPattern', {
           'message': 'Must use same pattern as previous player.'
         });
@@ -396,6 +399,7 @@ io.on('connection', function(client) {
     // Check if player is using a higher value pattern.
     if (game[client.id].lastMove.length > 0 &&
         compareCards(toPlay[toPlay.length - 1], game[client.id].lastMove[game[client.id].lastMove.length - 1]) === -1) {
+      console.log('Bad Pattern: Your selected cards are lower than the current cards.');
       io.to(client.id).emit('badPattern', {
         'message': 'Your selected cards are lower than the current cards.'
       });
@@ -423,6 +427,7 @@ io.on('connection', function(client) {
     console.log('Cards Left: ' + game[client.id].p1deck.length);
     // Winner
     if (game[client.id].p1deck.length === 0) {
+      console.log('Winner: ' + client.id);
       clearInterval(gameTimer);
       io.to(client.id).emit('game', game[client.id].p1deck);
       io.to(client.id).emit('pile', game[client.id].pile);
