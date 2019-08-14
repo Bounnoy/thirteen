@@ -161,7 +161,6 @@
       socket.on('turn', function(sData) {
         if (sData.turn.player === socket.id) {
           $('#playerBtn').empty();
-          $('#playerDeck').append('<button id="btnReset" type="button" class="btn btn-primary mr-2 mb-2">Reset</button>');
           if (sData.turn.pattern != '0') {
             $('#playerDeck')
               .append($('<button id="btnSkip" type="button" class="btn btn-primary mr-2 mb-2">Skip</button>')
@@ -176,14 +175,12 @@
             }));
         } else {
           $('#playerBtn').empty().prepend(`<p>${sData.turn.player}'s turn...</p>`);
-          $('#btnReset').remove();
           $('#btnSkip').remove();
           $('#btnPlay').remove();
         }
       });
 
       socket.on('win', function(sData) {
-        $('#btnReset').hide();
         $('#btnSkip').hide();
         $('#btnPlay').hide();
         $('#playerBtn').empty().prepend(`<p style="color: "#d4f">${sData.message}</p>`);
