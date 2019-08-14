@@ -60,3 +60,8 @@ Or in production mode.
 ```
 npm start
 ```
+
+To use Browser-sync when developing, start the server, then run...
+```
+npm run ui
+```
