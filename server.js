@@ -12,11 +12,23 @@ server.get('/', function(req, res) {
   res.sendFile(__dirname + '/client/index.html');
 });
 
-var game = {};
+var user = {}; // users on the website
+var game = {}; // game instances
 
 io.on('connection', function(client) {
   console.log('Client connected: ' + client.id);
+  user[client.id] = {
+    name: client.id,
+    win: 0,
+    lose: 0,
+    gameID: client.id
+  };
+
   game[client.id] = {
+    player1: '',
+    player2: '',
+    player3: '',
+    player4: '',
     p1deck: [],
     p2deck: [],
     p3deck: [],
@@ -40,6 +52,7 @@ io.on('connection', function(client) {
     winMessage: ''
   };
 
+  console.log('Current user population: ' + (Object.entries(user).length === 0 && user.constructor === Object ? 0 : Object.entries(user).length));
   console.log('Current game instances: ' + (Object.entries(game).length === 0 && game.constructor === Object ? 0 : Object.entries(game).length));
 
   newDeck(client);
@@ -178,8 +191,60 @@ io.on('connection', function(client) {
 
   client.on('disconnect', function() {
     console.log('Disconnected: ' + client.id);
-    //clearInterval(game[client.id].timer);
-    delete game[client.id];
+
+    // Check if client is in a game instance.
+    // If they are, forfeit the client's game.
+    if (user[client.id].gameID != '') {
+      var index = user[client.id].gameID;
+      var emptyGameCount = 0;
+
+      if (game[index].player1 === client.id) {
+        game[index].player1 = '';
+        ++emptyGameCount;
+      } else if (game[index].player1 === '') {
+        ++emptyGameCount;
+      } else if (game[index].player1 === 'Player 1') {
+        ++emptyGameCount;
+      }
+
+      if (game[index].player2 === client.id) {
+        game[index].player2 = '';
+        ++emptyGameCount;
+      } else if (game[index].player2 === '') {
+        ++emptyGameCount;
+      } else if (game[index].player2 === 'Player 2') {
+        ++emptyGameCount;
+      }
+
+      if (game[index].player3 === client.id) {
+        game[index].player3 = '';
+        ++emptyGameCount;
+      } else if (game[index].player3 === '') {
+        ++emptyGameCount;
+      } else if (game[index].player3 === 'Player 3') {
+        ++emptyGameCount;
+      }
+
+      if (game[index].player4 === client.id) {
+        game[index].player4 = '';
+        ++emptyGameCount;
+      } else if (game[index].player4 === '') {
+        ++emptyGameCount;
+      } else if (game[index].player4 === 'Player 4') {
+        ++emptyGameCount;
+      }
+
+      console.log('Game ' + index + ' has ' + (4 - emptyGameCount) + ' active players.');
+
+      // If 4, then it's ok to delete the game.
+      if (emptyGameCount === 4) {
+        delete game[index];
+      }
+    }
+
+    delete user[client.id];
+    console.log('Current user population: ' + (Object.entries(user).length === 0 && user.constructor === Object ? 0 : Object.entries(user).length));
+    console.log('Current game instances: ' + (Object.entries(game).length === 0 && game.constructor === Object ? 0 : Object.entries(game).length));
   })
 });
 

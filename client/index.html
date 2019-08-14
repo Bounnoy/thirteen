@@ -100,9 +100,9 @@
     <script type="text/javascript">
       var toPlay = [];
 
-      var socket = io.connect('http://thirteen.sytes.net');
+      //var socket = io.connect('http://thirteen.sytes.net');
       //var socket = io.connect('http://192.168.1.128:8000');
-      //var socket = io.connect('http://192.168.0.12:8000');
+      var socket = io.connect('http://192.168.0.12:8000');
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
