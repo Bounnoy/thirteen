@@ -8,12 +8,16 @@
     <meta name="description" content="Thirteen: A turn-based pattern matching card game.">
     <meta name="author" content="Bounnoy Phanthavong">
 
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.6.min.js"></script>
+    <script type="text/javascript" src="client/jquery.reveal.js"></script>
+
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 		<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" />
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.2/socket.io.js"></script>
-    <!--<script type="text/javascript" src="http://localhost:8000/socket.io/socket.io.js"></script>-->
+
+    <link rel="stylesheet" href="client/reveal.css">
+
     <style type="text/css">
 			.navbar {
 				margin-bottom:30px;
@@ -28,22 +32,19 @@
         <ul class="navbar-nav mr-auto">
           <li class="nav-item active">
             <a class="nav-link" href="#">home</a>
-          </li><!--
-          <li class="nav-item">
-            <a class="nav-link" href="#">rules</a>
           </li>
-					<li class="nav-item">
-            <a class="nav-link" href="#">patterns</a>
-          </li>-->
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-reveal-id="howTo">how to play</a>
+          </li>
         </ul>
 
 				<ul class="navbar-nav my-2 my-lg-0">
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <a class="nav-link" href="#">register</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="#">login</a>
-          </li>
+          </li> -->
         </ul>
 
       </div>
@@ -97,12 +98,73 @@
     <footer class="container">
       <p><a href="https://github.com/Bounnoy/thirteen">Thirteen v0.8</a> by <a href="https://github.com/Bounnoy">Bounnoy Phanthavong</a> @ <a href="https://www.pdx.edu/">Portland State University</a>. All rights reserved.</p>
     </footer>
+
+    <!-- pop-ups -->
+    <div id="howTo" class="reveal-modal xlarge">
+      <h1>How to Play Thirteen</h1>
+      <p>
+        On the first game, the player with a [3&spades;] or lowest card goes first.<br>
+        The player can use any pattern they wish, but must play the [3&spades;] or lowest card first.<br>
+        After the first game, the previous winner gets to play any pattern they want.<br>
+        A [3&spades;] or lowest card is not required after the first game.
+      </p>
+      <p>
+        The game is played by taking turns in a clockwise direction.<br>
+        For example, if player 2 has a [3&spades;], then they go first.<br>
+        Then, player 3 goes next, then player 4, player 1, and then back to player 2.
+      </p>
+      <p>
+        Each turn, players must match the pattern in the pile with a higher last card.<br>
+        For example, if there's a [3&spades;, 3<font color=red>&diams;</font>] in the pile, you can beat that with a [7&clubs;, 7<font color=red>&hearts;</font>].<br>
+        If no one else can beat the pattern in the pile for a full round, the player that owns the cards in the pile can play any pattern they want.
+      </p>
+      <p>The goal of the game is to have no cards left. If you have no cards left, you've won the game!</p>
+
+      <h2><br>Card Values</h2>
+      <p>
+        In order from lowest to highest number: 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2<br>
+        In order from lowest to highest suit: &spades;, &clubs;, <font color=red>&diams;</font>, <font color=red>&hearts;</font>
+      </p>
+
+      <h2><br>Patterns</h2>
+      <p>
+        Singles: [3&spades;]<br>
+        Pairs: [5<font color=red>&diams;</font>, 5<font color=red>&hearts;</font>]<br>
+        Triples: [J&clubs;, J<font color=red>&diams;</font>, J<font color=red>&hearts;</font>]<br><br>
+
+        For the patterns below, they must be in a sequence of at least 3 and can't contain a 2.<br>
+        Whatever the size is, the players trying to beat the pattern must follow the same size.<br><br>
+
+        Straights: [J&clubs;, Q<font color=red>&diams;</font>, K<font color=red>&hearts;</font>]<br>
+        Double Straights: [J&clubs;, J<font color=red>&diams;</font>, Q<font color=red>&diams;</font>, Q<font color=red>&hearts;</font>, K&spades;, K&clubs;]<br>
+        Triple Straights: [J&spades;, J&clubs;, J<font color=red>&diams;</font>, Q&clubs;, Q<font color=red>&diams;</font>, Q<font color=red>&hearts;</font>, K&spades;, K&clubs;, K<font color=red>&hearts;</font>]<br>
+      </p>
+
+      <h2><br>Special Patterns</h2>
+      <p>In addition to the regular patterns, there are 2 types of patterns that don't need to follow the usual pattern.</p>
+
+      <h5><br>Instant Win Patterns</h5>
+      <p>
+        Four 2's: [2&spades;, 2&clubs;, 2<font color=red>&diams;</font>, 2<font color=red>&hearts;</font>]<br>
+        Any 6 pairs: [3&spades;, 3<font color=red>&diams;</font>, 5&clubs;, 5<font color=red>&diams;</font>, 7&clubs;, 7<font color=red>&diams;</font>, 10&spades;, 10&clubs;, J&spades;, J<font color=red>&diams;</font>, A&spades;, A<font color=red>&hearts;</font>]<br>
+        12-straight: [3&spades;, 4&clubs;, 5<font color=red>&diams;</font>, 6<font color=red>&diams;</font>, 7&clubs;, 8&spades;, 9<font color=red>&diams;</font>, 10&clubs;,
+          J<font color=red>&diams;</font>, Q&clubs;, K<font color=red>&hearts;</font>, A<font color=red>&hearts;</font>]
+      </p>
+
+      <h5><br>Pattern Breakers</h5>
+      <p>
+        3x Double straights breaks any singles (including 2's): [J&clubs;, J<font color=red>&diams;</font>, Q<font color=red>&diams;</font>, Q<font color=red>&hearts;</font>, K&spades;, K&clubs;]<br>
+        4x Double straights breaks any pairs (including 2's): [J&clubs;, J<font color=red>&diams;</font>, Q<font color=red>&diams;</font>, Q<font color=red>&hearts;</font>, K&spades;, K&clubs;, A&spades;, A&clubs;]<br>
+        Quads can break any singles/pairs (including 2's): [5&spades;, 5&clubs;, 5<font color=red>&diams;</font>, 5<font color=red>&hearts;</font>]
+      </p>
+      <a class="close-reveal-modal">&#215;</a>
+    </div>
+
+
     <script type="text/javascript">
       var toPlay = [];
 
       var socket = io.connect('http://thirteen.sytes.net');
-      //var socket = io.connect('http://192.168.1.128:8000');
-      //var socket = io.connect('http://192.168.0.12:8000');
       socket.on('players', function(sData) {
         $('#player2').empty();
         $('#player3').empty();
