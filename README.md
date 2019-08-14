@@ -8,6 +8,7 @@ There's also many different variations of the game with different rules, but for
 up playing with. This game is meant to be played by 4 people and requires some strategy and a bit of luck.
 
 A demo of the game can be played at https://project-thirteen.appspot.com which is hosted on Google's App Engine using a flexible environment.
+
 _Note: You may need to click an icon to Load Unsafe Script in your browser to view the 'how to play' link._
 
 
