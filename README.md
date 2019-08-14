@@ -10,6 +10,9 @@ up playing with. This game is meant to be played by 4 people and requires some s
 A demo of the game can be played at https://project-thirteen.appspot.com which is hosted on Google's App Engine using a flexible environment.
 
 
+## Disclaimer
+This was built in a rush so the code is very inefficient and not structured the way I'd like. It requires a major refactor which I may do over the rest of my summer break.
+
 
 ## Dev Dependencies
 * Browser-sync
