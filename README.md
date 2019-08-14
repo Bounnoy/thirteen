@@ -9,7 +9,7 @@ up playing with. This game is meant to be played by 4 people and requires some s
 
 A demo of the game can be played at https://project-thirteen.appspot.com which is hosted on Google's App Engine using a flexible environment.
 
-_Note: You may need to click an icon to Load Unsafe Script in your browser to view the 'how to play' link._
+_**Note:** You may need to click an icon to Load Unsafe Script in your browser to view the '**how to play**' link._
 
 
 ## Disclaimer
