@@ -1,0 +1,40 @@
+runtime: nodejs
+env: flex
+
+# This sample incurs costs to run on the App Engine flexible environment.
+# The settings below are to reduce costs during testing and are not appropriate
+# for production use. For more information, see:
+# https://cloud.google.com/appengine/docs/flexible/nodejs/configuring-your-app-with-app-yaml
+manual_scaling:
+  instances: 1
+resources:
+  cpu: 1
+  memory_gb: 0.5
+  disk_size_gb: 10
+
+handlers:
+- url: /(.*\.css)
+  mime_type: text/css
+  static_files: client/\1
+  upload: client/(.*\.css)
+
+- url: /(.*\.js)
+  mime_type: text/javascript
+  static_files: client/\1
+  upload: client/(.*\.js)
+
+- url: /(.*\.html)
+  mime_type: text/html
+  static_files: client/\1
+  upload: client/(.*\.html)
+  expiration: "1h"
+
+- url: /client
+  static_dir: client
+
+# site root
+- url: /
+  static_files: client/index.html
+  upload: client/index.html
+  expiration: "15m"
+
