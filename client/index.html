@@ -55,15 +55,15 @@
         <!-- Opponent Deck -->
         <div class="row">
           <div class="col-md-4">
-            <h5 align="center">Player 2</h5>
+            <h5 align="center" id="player2"></h5>
             <p align="center" id="p2"></p>
           </div>
           <div class="col-md-4">
-            <h5 align="center">Player 3</h5>
+            <h5 align="center" id="player3"></h5>
             <p align="center" id="p3"></p>
           </div>
           <div class="col-md-4">
-            <h5 align="center">Player 4</h5>
+            <h5 align="center" id="player4"></h5>
             <p align="center" id="p4"></p>
           </div>
         </div>
@@ -72,7 +72,7 @@
       <div class="jumbotron">
         <div class="container" align="center" id='pile'>
           <!-- Game area. -->
-
+          <button id="btnStartGame" type="button" class="btn btn-primary mr-2 mb-2">Start Game</button>
 
         </div>
       </div>
@@ -95,14 +95,22 @@
     </main>
 
     <footer class="container">
-      <p><a href="https://github.com/Bounnoy">Bounnoy Phanthavong</a> @ <a href="https://www.pdx.edu/">Portland State University</a>. All rights reserved.</p>
+      <p><a href="https://github.com/Bounnoy/thirteen">Thirteen v0.8</a> by <a href="https://github.com/Bounnoy">Bounnoy Phanthavong</a> @ <a href="https://www.pdx.edu/">Portland State University</a>. All rights reserved.</p>
     </footer>
     <script type="text/javascript">
       var toPlay = [];
 
-      //var socket = io.connect('http://thirteen.sytes.net');
+      var socket = io.connect('http://thirteen.sytes.net');
       //var socket = io.connect('http://192.168.1.128:8000');
-      var socket = io.connect('http://192.168.0.12:8000');
+      //var socket = io.connect('http://192.168.0.12:8000');
+      socket.on('players', function(sData) {
+        $('#player2').empty();
+        $('#player3').empty();
+        $('#player4').empty();
+        if (sData.player2) $('#player2').text(sData.player2);
+        if (sData.player3) $('#player3').text(sData.player3);
+        if (sData.player4) $('#player4').text(sData.player4);
+      });
 
       socket.on('cpu', function(sData) {
         $('#p2').text(sData.p2);
@@ -180,15 +188,14 @@
         $('#btnPlay').hide();
         $('#playerBtn').empty().prepend(`<p style="color: "#d4f">${sData.message}</p>`);
         $('#playerDeck')
-          .append('<button id="newGame" type="button" class="btn btn-primary mr-2 mb-2">Play Again</button>')
-          .click(function() {
-            location.reload();
-          });
+          .append($('<button id="newGame" type="button" class="btn btn-primary mr-2 mb-2">Play Again</button>')
+            .click(function() { socket.emit('newGame'); }));
       });
 
       socket.on('game', function(sData) {
         toPlay.length = 0;
         $('#playerBtn').empty();
+        $('#newGame').remove();
         $('#pDeck').empty();
         for (var i = 0; i < sData.length; i++) {
           if (i === 6) $('#pDeck').append('<br>');
@@ -231,6 +238,9 @@
         $('#playerBtn').empty().prepend('<p style="color: red">' + mes.message + '</p>');
       });
 
+      $('#btnStartGame').on('click', () => {
+        socket.emit('newGame');
+      });
     </script>
   </body>
 </html>

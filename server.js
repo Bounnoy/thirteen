@@ -21,71 +21,59 @@ io.on('connection', function(client) {
     name: client.id,
     win: 0,
     lose: 0,
-    gameID: client.id
-  };
-
-  game[client.id] = {
-    player1: '',
-    player2: '',
-    player3: '',
-    player4: '',
-    p1deck: [],
-    p2deck: [],
-    p3deck: [],
-    p4deck: [],
-    p1move: [],
-    p2move: [],
-    p3move: [],
-    p4move: [],
-    p1skip: 0,
-    p2skip: 0,
-    p3skip: 0,
-    p4skip: 0,
-    lastMove: [],
-    pile: [],
-    turn: {
-      'player': '',
-      'pattern': ''
-    },
-    winner: '',
-    winCode: 0,
-    winMessage: ''
+    gameID: ''
   };
 
   console.log('Current user population: ' + (Object.entries(user).length === 0 && user.constructor === Object ? 0 : Object.entries(user).length));
   console.log('Current game instances: ' + (Object.entries(game).length === 0 && game.constructor === Object ? 0 : Object.entries(game).length));
 
-  newDeck(client);
-
-  game[client.id].timer = gameTimer(client, io);
-
   client.on('newGame', () => {
-    console.log('New Game Button: ' + client.id);
-    game[client.id].p1deck.length = 0;
-    game[client.id].p2deck.length = 0;
-    game[client.id].p3deck.length = 0;
-    game[client.id].p4deck.length = 0;
-    game[client.id].p1move.length = 0;
-    game[client.id].p2move.length = 0;
-    game[client.id].p3move.length = 0;
-    game[client.id].p4move.length = 0;
-    game[client.id].p1skip = 0;
-    game[client.id].p2skip = 0;
-    game[client.id].p3skip = 0;
-    game[client.id].p4skip = 0;
-    game[client.id].lastMove.length = 0;
-    game[client.id].pile.length = 0;
-    game[client.id].turn = {
-      'player': '',
-      'pattern': ''
+    console.log('New Game Started: ' + client.id);
+
+    game[client.id] = {
+      player1: client.id,
+      player2: '',
+      player3: '',
+      player4: '',
+      p1deck: [],
+      p2deck: [],
+      p3deck: [],
+      p4deck: [],
+      p1move: [],
+      p2move: [],
+      p3move: [],
+      p4move: [],
+      p1skip: 0,
+      p2skip: 0,
+      p3skip: 0,
+      p4skip: 0,
+      lastMove: [],
+      pile: [],
+      turn: {
+        'player': '',
+        'pattern': ''
+      },
+      winner: '',
+      winCode: 0,
+      winMessage: ''
     };
+
+    user[client.id].gameID = client.id;
     newDeck(client);
+    io.to(client.id).emit('players', {
+      'player2': 'Player 2',
+      'player3': 'Player 3',
+      'player4': 'Player 4'
+    });
+    game[client.id].timer = gameTimer(client, io);
+    console.log('Current game instances: ' + (Object.entries(game).length === 0 && game.constructor === Object ? 0 : Object.entries(game).length));
   });
 
   client.on('play', function(toPlay) {
 
     console.log('Play Button: ' + client.id);
     console.log('Turn: ' + game[client.id].turn.player);
+
     // Check to make sure it's a player's turn.
     if (game[client.id].turn.player != client.id) return;
 
@@ -164,7 +152,7 @@ io.on('connection', function(client) {
       io.to(client.id).emit('win', {
         'message': 'You win!'
       });
-      client.disconnect();
+      stopGame(client);
       return;
     }
 
@@ -442,7 +430,8 @@ var newDeck = async (client) => {
         'message': (game[client.id].winner === client.id) ?
           'Instant win! You have' + game[client.id].winMessage : 'Instant win! ' + game[client.id].winner + ' has' + game[client.id].winMessage
       });
-      client.disconnect();
+      stopGame(client);
+      return;
     }
 
   } catch (error) {
@@ -735,8 +724,8 @@ var gameTimer = (client, io) => {
 
     if (game[client.id].winner != '') {
       console.log('Game timer stopped.');
-      clearInterval(innerTimer);
-      client.disconnect();
+      stopGame(client);
+      return;
     }
 
     if (game[client.id].turn.player === 'Player 2') {
@@ -793,16 +782,6 @@ var gameTimer = (client, io) => {
       }
       console.log('Cards Left: ' + game[client.id].p2deck.length);
       console.log('Emitting to: ' + client.id);
-      // Winner
-      if (game[client.id].p2deck.length === 0) {
-        console.log('Winner: Player 2');
-        clearInterval(innerTimer);
-        io.to(client.id).emit('win', {
-          'message': 'Player 2 wins!'
-        });
-        client.disconnect();
-        return;
-      }
 
       io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('cpu', {
@@ -813,6 +792,17 @@ var gameTimer = (client, io) => {
         'p3move': game[client.id].p3move,
         'p4move': game[client.id].p4move
       });
+
+      // Winner
+      if (game[client.id].p2deck.length === 0) {
+        console.log('Winner: Player 2');
+        io.to(client.id).emit('win', {
+          'message': 'Player 2 wins!'
+        });
+        stopGame(client);
+        return;
+      }
+
       io.to(client.id).emit('turn', {'turn': game[client.id].turn});
     }
 
@@ -870,16 +860,6 @@ var gameTimer = (client, io) => {
       }
       console.log('Cards Left: ' + game[client.id].p3deck.length);
       console.log('Emitting to: ' + client.id);
-      // Winner
-      if (game[client.id].p3deck.length === 0) {
-        console.log('Winner: Player 3');
-        clearInterval(innerTimer);
-        io.to(client.id).emit('win', {
-          'message': 'Player 3 wins!'
-        });
-        client.disconnect();
-        return;
-      }
 
       io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('cpu', {
@@ -890,6 +870,17 @@ var gameTimer = (client, io) => {
         'p3move': game[client.id].p3move,
         'p4move': game[client.id].p4move
       });
+
+      // Winner
+      if (game[client.id].p3deck.length === 0) {
+        console.log('Winner: Player 3');
+        io.to(client.id).emit('win', {
+          'message': 'Player 3 wins!'
+        });
+        stopGame(client);
+        return;
+      }
+
       io.to(client.id).emit('turn', {'turn': game[client.id].turn});
     }
 
@@ -960,16 +951,7 @@ var gameTimer = (client, io) => {
       }
       console.log('Cards Left: ' + game[client.id].p4deck.length);
       console.log('Emitting to: ' + client.id);
-      // Winner
-      if (game[client.id].p4deck.length === 0) {
-        console.log('Winner: Player 4');
-        clearInterval(innerTimer);
-        io.to(client.id).emit('win', {
-          'message': 'Player 4 wins!'
-        });
-        client.disconnect();
-        return;
-      }
+
       io.to(client.id).emit('pile', game[client.id].pile);
       io.to(client.id).emit('cpu', {
         'p2': game[client.id].p2deck.length,
@@ -979,7 +961,27 @@ var gameTimer = (client, io) => {
         'p3move': game[client.id].p3move,
         'p4move': game[client.id].p4move
       });
+
+      // Winner
+      if (game[client.id].p4deck.length === 0) {
+        console.log('Winner: Player 4');
+        io.to(client.id).emit('win', {
+          'message': 'Player 4 wins!'
+        });
+        stopGame(client);
+        return;
+      }
+
       io.to(client.id).emit('turn', {'turn': game[client.id].turn});
     }
   }, 1000);
+};
+
+// This function handles the user score and then deletes the game.
+var stopGame = (client) => {
+  if (game[client.id].winner = client.id) ++user[client.id].win;
+  else ++user[client.id].lose;
+
+  user[client.id].gameID = '';
+  delete game[client.id];
 };
