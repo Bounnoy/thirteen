@@ -7,10 +7,7 @@ Thirteen is a game I grew up playing with my friends. It's a really popular game
 There's also many different variations of the game with different rules, but for this implementation I'm using the rules I grew
 up playing with. This game is meant to be played by 4 people and requires some strategy and a bit of luck.
 
-A demo of the game can be played at https://project-thirteen.appspot.com which is hosted on Google's App Engine using a flexible environment.
-
-_**Note:** You may need to click an icon to **Load Unsafe Script** in your browser to view the '**how to play**' link._
-
+A demo of the game can be played at http://project-thirteen.appspot.com which is hosted on Google's App Engine using a flexible environment.
 
 ## Disclaimer
 This was built in a rush so the code is very inefficient and not structured the way I'd like. It requires a major refactor which I may do over the rest of my summer break.
